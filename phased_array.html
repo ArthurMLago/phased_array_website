@@ -1,0 +1,86 @@
+<html>
+    <head>
+        <title>Phased Array Animation Tool</title>
+
+        <link rel="stylesheet" href="style.css">
+
+        <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/mathjs/11.2.1/math.js"></script>
+        <script src="scripts.js"></script>
+    </head>
+    <body>
+        <div id="configDiv">
+            <h3>Animation Control</h3>
+
+            <div>
+                <button class="ui-button ui-widget ui-corner-all">
+                    Stop
+                </button>
+                <button class="ui-button ui-widget ui-corner-all ui-button-icon-only" title="Button with icon only">
+                    <span class="ui-icon ui-icon-gear"></span> Pause
+                </button>
+                <button class="ui-button ui-widget ui-corner-all">
+                    <span class="ui-icon ui-icon-gear"></span> Play
+                </button>
+                <button class="ui-button ui-widget ui-corner-all">
+                    <span class="ui-icon ui-icon-gear"></span> Fast forward to stationary state
+                </button>
+            </div>
+            <div>
+                <label for="animSpeed">Animation Speed:</label><input id="animSpeed" />
+            </div>
+            <h4>Draw:</h4>
+            <div class=checkbox-row>
+                <label for="drawElectricField">Draw Electric Field:</label><input type="checkbox" id="drawElectricField">
+            </div>
+            <div class=checkbox-row>
+                <label for="drawMagnitude">Draw Magnitude:</label><input type="checkbox" id="drawMagnitude">
+            </div>
+            <div class=checkbox-row>
+                <label for="drawSinusoidPeaks">Draw Sinusoid Peaks:</label><input type="checkbox" id="drawSinusoidPeaks">
+                <div id="sinusoidPeakDetails" class=checkbox-extrainfo style="display:none;">
+                    <label for="sinusoidPeakStep">Every</label><input id="sinusoidPeakStep" /> peaks
+                </div>
+            </div>
+            <div class=checkbox-row>
+                <label for="drawWaveFronts">Draw Wavefronts:</label><input type="checkbox" id="drawWaveFronts">
+                <div id="wavefrontDetails" class=checkbox-extrainfo style="display:none;">
+                    <label for="waveFrontStep">Every</label><input id="waveFrontStep" /> peaks
+                </div>
+            </div>
+
+            <button>Zoom to fit</button>
+
+            <h3>Antenna Configuration</h3>
+            <label for="customAntennaSelect">Custom Antennas:</label><input type="checkbox" id="customAntennaSelect">
+            <textarea id="customAntennaField" style="display:none;"></textarea>
+            <div class=checkbox-row>
+                <label for="numberElements">Number of Elements:</label><input id="numberElements" />
+            </div>
+            <div class=checkbox-row>
+            <label for="elementsHorizontalDistance">Elements Horizontal Distance:</label><input id="elementsHorizontalDistance"/>
+            </div>
+
+            <h3>Signal Configuration</h3>
+            <div class=checkbox-row>
+                <label for="waveSpeed">Wave Speed:</label><input id="waveSpeed" />
+            </div>
+            <div class=checkbox-row>
+                <label for="carrierFreq">Carrier Frequency:</label><input id="carrierFreq" />
+            </div>
+            <label for="customFeedsSelect">Custom Feeds:</label><input type="checkbox" id="customFeedsSelect">
+            <textarea id="customFeedsField" style="display:none;"></textarea>
+            <div class=checkbox-row>
+                <label for="wavefrontAngle">Wavefront Angle:</label><input id="wavefrontAngle"/>
+            </div>
+            <div class=checkbox-row>
+                <label for="phaseVariationByElement">Phase Variation for each element:</label><input id="phaseVariationByElement" />
+            </div>
+        </div>
+        <div id="sceneHolder">
+            <canvas id="fieldsCanvas" width=1200 height=1200></canvas>
+            <canvas id="staticElementsCanvas" width=1200 height=1200></canvas>
+            <canvas id="diagramCanvas" width=1200 height=1200></canvas>
+        </div>
+    </body>
+</html>

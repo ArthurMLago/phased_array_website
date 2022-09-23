@@ -1,0 +1,70 @@
+body{
+    /*background: #000;*/
+}
+
+#configDiv{
+    background: #72c99e;
+}
+
+.checkbox-row{
+    display: table-row;
+    text-align: right;
+    margin-top:50px;
+}
+.checkbox-extrainfo{
+    display: table-cell;
+}
+
+.checkbox-row label{
+    margin: 1em;
+}
+
+#customAntennaField{
+    display: block;
+}
+
+#customFeedsField{
+    display: block;
+}
+
+#sinusoidPeakStep{
+    width: 4em;
+}
+
+#waveFrontStep{
+    width: 4em;
+}
+
+#numberElements{
+    width: 4em;
+}
+
+#elementsHorizontalDistance{
+    width: 4em;
+}
+
+#sceneHolder{
+    position: relative;
+}
+
+#fieldsCanvas{
+    position: absolute;
+    left: 0px;
+    top: 0px;
+    z-index: 1;
+}
+
+#staticElementsCanvas{
+    position: absolute;
+    left: 0px;
+    top: 0px;
+    /*background: #f00;*/
+    z-index: 300;
+}
+
+#diagramCanvas{
+    position: absolute;
+    left: 0px;
+    top: 0px;
+    z-index: 3;
+}
