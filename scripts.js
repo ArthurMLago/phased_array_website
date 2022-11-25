@@ -4,6 +4,7 @@ var simulatedWorldStartY = -.5;
 var DrawScale = 100;
 var startX, startY;
 var dragging;
+var movingAverageRenderTime = 1/60;
 
 var fieldsWorker = 0;
 
@@ -149,6 +150,9 @@ function updateForm(){
 function animate(){
     let delta = Date.now() - lastRender;
     lastRender += delta;
+
+    movingAverageRenderTime = movingAverageRenderTime * 0.99 + delta * 0.01;
+    console.log("averageFPS:" + 1/movingAverageRenderTime*1e3);
 
     simulationTime += delta/1000 /3e9
 

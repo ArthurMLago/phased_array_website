@@ -15,7 +15,7 @@ onmessage = (e) => {
             bigMem = new WebAssembly.Memory({
                 initial: 1024,
                 maximum: 2048,
-                shared: false,
+                shared: true,
             });
             const enviro = {
                 memory: bigMem,
