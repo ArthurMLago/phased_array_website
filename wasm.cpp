@@ -137,10 +137,26 @@ EXTERN CONDITIONAL_EMSCRIPTEN_KEEPALIVE void getFieldImage(double t, unsigned nA
         }
     }
     createImage(field, width, height, resolution, out);
-    free(field);
-
-
 }
+
+EXTERN CONDITIONAL_EMSCRIPTEN_KEEPALIVE void* getMousePositionInfo(double t, unsigned nAnt, struct pos *antPos, struct cf32 *feeds, float startX, float startY, float drawScale, float carrierFreq, float waveSpeed){
+    static struct ret_info{
+        float magnitude;
+        float initial_phase;
+        float phase;
+        float magdb;
+        float re;
+        float im;
+    } ret;
+    calculate_magnitudes(nAnt, antPos, feeds, startX, startY, drawScale, 1, 1, 1, carrierFreq, waveSpeed, &ret.magnitude, &ret.initial_phase);
+    ret.phase = ret.initial_phase + 2 * M_PI * carrierFreq * t;
+    ret.magdb = log10(ret.magnitude + 0.0000001)/3 + 1;
+    ret.re = ret.magnitude * sin(ret.phase);
+    ret.im = ret.magnitude * cos(ret.phase);
+
+    return &ret;
+}
+
 EXTERN CONDITIONAL_EMSCRIPTEN_KEEPALIVE unsigned long exportedMalloc(unsigned long nbytes){
     return (unsigned long)malloc(nbytes);
 }
