@@ -5,6 +5,8 @@ var DrawScale = 100;
 var startX, startY;
 var dragging;
 var movingAverageRenderTime = 1/60;
+var alreadyProcessing = false;
+var pendingProcessing = false;
 
 var fieldsWorker = 0;
 
@@ -38,14 +40,6 @@ function PtosY(pY){
 }
 
 function updatePhaseVariation(){
-    var phaseVar = 2 * pi * $("#elementsHorizontalDistance").val() * Math.sin($("#wavefrontAngle").val() * pi / 180) / $("#waveSpeed").val() * $("#carrierFreq").val();
-    $("#phaseVariationByElement").val(phaseVar * 180 / pi);
-    updateForm();
-}
-
-function updateWaveFrontAngle(){
-    var wavefrontAngle = Math.asin($("#phaseVariationByElement").val()/180 * pi * $("#waveSpeed").val() / $("#carrierFreq").val() / $("#elementsHorizontalDistance").val() / 2 / pi);
-    $("#wavefrontAngle").val(wavefrontAngle * 180 / pi);
     updateForm();
 }
 
@@ -81,6 +75,9 @@ function updateForm(){
         $("#wavefrontAngle").prop( "disabled", true );
         $("#phaseVariationByElement").prop( "disabled", true );
     }else{
+        var phaseVar = 2 * pi * $("#elementsHorizontalDistance").val() * Math.sin($("#wavefrontAngle").val() * pi / 180) / $("#waveSpeed").val() * $("#carrierFreq").val();
+        $("#phaseVariationByElement").val(phaseVar * 180 / pi);
+
         $("#customFeedsField").hide();
         $("#wavefrontAngle").prop( "disabled", false );
         $("#phaseVariationByElement").prop( "disabled", false );
@@ -98,8 +95,6 @@ function updateForm(){
             window.anglesList.push(angle);
         }
         $("#customFeedsField").val(textAreaText);
-
-
     }
 
     if ($("#drawSinusoidPeaks").prop('checked')){
@@ -130,19 +125,30 @@ function updateForm(){
     d.resolution = 2;
     console.log("should be sending");
     if (window.fieldsWorker instanceof Worker){
-        console.log("Sending updateparams to worker")
-        window.fieldsWorker.postMessage(d);
-        if ($("#drawMagnitude").prop('checked')){
-            window.fieldsWorker.postMessage({command:"getMag"});
-            window.fieldsWorker.onmessage = function(e) {
-                    //console.log(e.data);
-                    let canvas = document.getElementById("fieldsCanvas");
-                    let context = canvas.getContext("2d");
-                    let img = new ImageData(new Uint8ClampedArray(e.data), canvas.width,canvas.height);
-                    //context.clearRect(0, 0, canvas.width, canvas.height);
-                    context.putImageData(img, 0, 0);
-                    //context.stroke();
-                };
+        if (!alreadyProcessing){
+            console.log("Sending updateparams to worker")
+            window.fieldsWorker.postMessage(d);
+            if ($("#drawMagnitude").prop('checked')){
+                window.fieldsWorker.postMessage({command:"getMag"});
+                alreadyProcessing = true;
+                window.fieldsWorker.onmessage = function(e) {
+                        //console.log(e.data);
+                        let canvas = document.getElementById("fieldsCanvas");
+                        let context = canvas.getContext("2d");
+                        let img = new ImageData(new Uint8ClampedArray(e.data), canvas.width,canvas.height);
+                        //context.clearRect(0, 0, canvas.width, canvas.height);
+                        context.putImageData(img, 0, 0);
+                        //context.stroke();
+                        alreadyProcessing = false;
+                        if (pendingProcessing){
+                            updateForm();
+                            pendingProcessing = false;
+                        }
+                    };
+            }
+        }else{
+            console.log("Worker is busy, send things later");
+            pendingProcessing = true;
         }
     }
 }
@@ -152,7 +158,7 @@ function animate(){
     lastRender += delta;
 
     movingAverageRenderTime = movingAverageRenderTime * 0.99 + delta * 0.01;
-    console.log("averageFPS:" + 1/movingAverageRenderTime*1e3);
+    //console.log("averageFPS:" + 1/movingAverageRenderTime*1e3);
 
     simulationTime += delta/1000 /3e9
 
@@ -295,8 +301,11 @@ function resizeCanvas() {
 
 $(function(){
     $(".triggerFormUpdate").change(function() {updateForm();});
-    $("#phaseVariationByElement").change(updateWaveFrontAngle);
-    $("#wavefrontAngle").change(updatePhaseVariation);
+    $("#phaseVariationByElement").change(function(){
+        var wavefrontAngle = Math.asin($("#phaseVariationByElement").val()/180 * pi * $("#waveSpeed").val() / $("#carrierFreq").val() / $("#elementsHorizontalDistance").val() / 2 / pi);
+        $("#wavefrontAngle").val(wavefrontAngle * 180 / pi);
+        updateForm();
+    });
 
     $("#bobin").click(function(){$("#configDiv").animate({width:'toggle'},350)});
     resizeCanvas();
@@ -304,18 +313,47 @@ $(function(){
 
     updateForm();
     animate();
-    //restartWorker();
-    WebAssembly.compileStreaming(fetch("fields.wasm")).then(function(module){window.fieldsModule = module;restartWorker()});
+    //
+    wasmFeatureDetect.simd().then(function(hasSimd){console.log("SIMD support: " + hasSimd)});
+    Promise.all([wasmFeatureDetect.simd(), wasmFeatureDetect.bulkMemory(), wasmFeatureDetect.threads()]).then(function(ret){
+        console.log("crossOriginIsolated support(SharedArrayBuffer in postMessage support) : " + crossOriginIsolated);
+        console.log("WASM SIMD Support:" + ret[0]);
+        console.log("WASM Bulk Memory Support:" + ret[1]);
+        console.log("WASM Threads Support:" + ret[2]);
+
+        var wasm_filename = "compiled_wasm/fields";
+        if (crossOriginIsolated){
+            wasm_filename += "_sm";
+        }
+        if (ret[0]){
+            wasm_filename += "_simd";
+        }
+        if (ret[1]){
+            wasm_filename += "_bm";
+        }
+        // Threads will only work if we also have shared memories available:
+        if (ret[2] && crossOriginIsolated){
+            wasm_filename += "_th";
+        }
+        wasm_filename += ".wasm";
+        //wasm_filename = "fields.wasm"
+
+        WebAssembly.compileStreaming(fetch(wasm_filename)).then(function(module){
+            window.fieldsModule = module;
+            restartWorker()
+        });
+
+    });
 
     let canvas = document.getElementById("diagramCanvas");
     canvas.addEventListener('mousedown', function (event) {
         startX = event.clientX;
         startY = event.clientY;
         window.dragging = true;
-        canvas.addEventListener('mouseup', onMouseUp, false);
-        canvas.addEventListener('mousemove', onMouseMove, false);
         console.log(startX)
     }, false);
+    canvas.addEventListener('mouseup', onMouseUp, false);
+    canvas.addEventListener('mousemove', onMouseMove, false);
 
     canvas.addEventListener('wheel',function(event){
         let lastDrawScale = window.DrawScale;
@@ -327,7 +365,6 @@ $(function(){
         simulatedWorldStartX = mouseX - window.startX/window.DrawScale
         simulatedWorldStartY = mouseY - window.startY/window.DrawScale
 
-        console.log("wheel" + event.deltaY)
         window.pendingStaticsUpdate = true;
         updateForm();
         event.preventDefault();

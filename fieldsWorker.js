@@ -1,5 +1,4 @@
 var wsInstance = 0;
-var inputArgs = 0;
 var outImage = 0;
 var outOffset = 0;
 var antennasOffset = 0;
@@ -15,7 +14,7 @@ onmessage = (e) => {
             bigMem = new WebAssembly.Memory({
                 initial: 1024,
                 maximum: 2048,
-                shared: true,
+                shared: crossOriginIsolated,
             });
             const enviro = {
                 memory: bigMem,
@@ -35,16 +34,15 @@ onmessage = (e) => {
         case "updateParams":
             console.log("updateParams")
             console.log(wsInstance);
-            inputArgs = e.data;
 
             // Antennas:
-            let antennasSize = Float32Array.BYTES_PER_ELEMENT * e.data.ants.length * 3;
+            let antennasSize = Float64Array.BYTES_PER_ELEMENT * e.data.ants.length * 3;
             if (antennasOffset > 0){
                 wsInstance.exports.exportedFree(antennasOffset);
             }
             antennasOffset = wsInstance.exports.exportedMalloc(antennasSize);
             console.log("antennasOffset: " + antennasOffset);
-            const antArray = new Float32Array(bigMem.buffer, antennasOffset, e.data.ants.length * 3);
+            const antArray = new Float64Array(bigMem.buffer, antennasOffset, e.data.ants.length * 3);
             for (i = 0; i < e.data.ants.length; i++){
                 antArray[i*3 + 0] = e.data.ants[i][0];
                 antArray[i*3 + 1] = e.data.ants[i][1];
@@ -52,13 +50,13 @@ onmessage = (e) => {
             }
 
             // Feeds:
-            let feedsSize = Float32Array.BYTES_PER_ELEMENT * e.data.ants.length * 2;
+            let feedsSize = Float64Array.BYTES_PER_ELEMENT * e.data.ants.length * 2;
             if (feedsOffset > 0){
                 wsInstance.exports.exportedFree(feedsOffset);
             }
             feedsOffset = wsInstance.exports.exportedMalloc(feedsSize);
             console.log("feedsOffset: " + feedsOffset);
-            const feedsArray = new Float32Array(bigMem.buffer, feedsOffset, e.data.ants.length * 2);
+            const feedsArray = new Float64Array(bigMem.buffer, feedsOffset, e.data.ants.length * 2);
             for (i = 0; i < e.data.ants.length; i++){
                 feedsArray[i*2 + 0] = e.data.feeds[i].re;
                 feedsArray[i*2 + 1] = e.data.feeds[i].im;
@@ -72,28 +70,20 @@ onmessage = (e) => {
             outOffset = wsInstance.exports.exportedMalloc(outSize);
             console.log("outOffset: " + feedsOffset);
             outImage = new Uint8Array(bigMem.buffer, outOffset, e.data.width * e.data.height * 4);
-            console.log("next free byte: " + wsInstance.exports.exportedMalloc(1))
-            changed = 1;
+            wsInstance.exports.updateParams(e.data.ants.length, antennasOffset, feedsOffset, e.data.startX, e.data.startY, e.data.drawScale, e.data.resolution, e.data.width, e.data.height, e.data.carrierFreq, e.data.waveSpeed);
             break;
         case "getMag":
             console.log("getMag")
-            //console.log(inputArgs);
-            //console.log(outImage);
-            //console.log(bigMem);
-            //console.log(bigMem.buffer.byteLength);
-            wsInstance.exports.getMagnitudeImage(inputArgs.ants.length, antennasOffset, feedsOffset, inputArgs.startX, inputArgs.startY, inputArgs.drawScale, inputArgs.resolution, inputArgs.width, inputArgs.height, inputArgs.carrierFreq, inputArgs.waveSpeed, outOffset);
-            //console.log("resultado:")
-            //console.log(outImage);
+            wsInstance.exports.getMagnitudeImage(outOffset);
             postMessage(outImage);
             break;
         case "getField":
-            wsInstance.exports.getFieldImage(e.data.time, inputArgs.ants.length, antennasOffset, feedsOffset, inputArgs.startX, inputArgs.startY, inputArgs.drawScale, inputArgs.resolution, inputArgs.width, inputArgs.height, inputArgs.carrierFreq, inputArgs.waveSpeed, outOffset, changed);
+            wsInstance.exports.getFieldImage(e.data.time, outOffset);
             changed = 0;
             postMessage(outImage);
 
             break;
 
     }
-    //postMessage(workerResult);
 }
 

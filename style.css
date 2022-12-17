@@ -4,9 +4,11 @@ body{
 }
 
 #configDiv{
+    padding: 16px;
+    /*text-align: right;*/
     float:left;
     display: inline-block;
-    background: #72c99e;
+    background: #72c99ecc;
     max-width: 80%;
 }
 
@@ -26,6 +28,7 @@ body{
     display: table-row;
     text-align: right;
     margin-top:50px;
+    white-space: nowrap;
 }
 .checkbox-extrainfo{
     display: table-cell;
@@ -35,28 +38,24 @@ body{
     margin: 1em;
 }
 
+.floatInput{
+    padding: .25em;
+    border-radius: .5em;
+    width: 14em;
+}
+
+.intInput{
+    padding: .25em;
+    border-radius: .5em;
+    width: 5em;
+}
+
 #customAntennaField{
     display: block;
 }
 
 #customFeedsField{
     display: block;
-}
-
-#sinusoidPeakStep{
-    width: 4em;
-}
-
-#waveFrontStep{
-    width: 4em;
-}
-
-#numberElements{
-    width: 4em;
-}
-
-#elementsHorizontalDistance{
-    width: 4em;
 }
 
 #sceneHolder{

@@ -2,12 +2,11 @@
     <head>
         <title>Phased Array Animation Tool</title>
 
-        <meta http-equiv="Cross-Origin-Opener-Policy" content="same-origin">
-
         <link rel="stylesheet" href="style.css">
 
         <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
         <script src="https://cdnjs.cloudflare.com/ajax/libs/mathjs/11.3.3/math.js"></script>
+        <script src="wasm-feature-detect.js"></script>
         <script src="scripts.js"></script>
     </head>
     <body>
@@ -30,7 +29,7 @@
                     </button>
                 </div>
                 <div>
-                    <label for="animSpeed">Animation Speed:</label><input id="animSpeed"  class="triggerFormUpdate"/>
+                    <label for="animSpeed">Animation Speed:</label><input id="animSpeed"  class="triggerFormUpdate floatInput"/>
                 </div>
                 <h4>Draw:</h4>
                 <div class=checkbox-row>
@@ -42,13 +41,13 @@
                 <div class=checkbox-row>
                     <label for="drawSinusoidPeaks">Draw Sinusoid Peaks:</label><input type="checkbox" id="drawSinusoidPeaks" class="triggerFormUpdate">
                     <div id="sinusoidPeakDetails" class=checkbox-extrainfo style="display:none;">
-                        <label for="sinusoidPeakStep">Every</label><input id="sinusoidPeakStep"  class="triggerFormUpdate"/> peaks
+                        <label for="sinusoidPeakStep">Every</label><input id="sinusoidPeakStep"  class="triggerFormUpdate intInput"/> peaks
                     </div>
                 </div>
                 <div class=checkbox-row>
                     <label for="drawWaveFronts">Draw Wavefronts:</label><input type="checkbox" id="drawWaveFronts" class="triggerFormUpdate">
                     <div id="wavefrontDetails" class=checkbox-extrainfo style="display:none;">
-                        <label for="waveFrontStep">Every</label><input id="waveFrontStep"  class="triggerFormUpdate"/> peaks
+                        <label for="waveFrontStep">Every</label><input id="waveFrontStep"  class="triggerFormUpdate intInput"/> peaks
                     </div>
                 </div>
 
@@ -58,27 +57,35 @@
                 <label for="customAntennaSelect">Custom Antennas:</label><input type="checkbox" id="customAntennaSelect" class="triggerFormUpdate">
                 <textarea id="customAntennaField" style="display:none;" class="triggerFormUpdate"></textarea>
                 <div class=checkbox-row>
-                    <label for="numberElements">Number of Elements:</label><input id="numberElements" value=5  class="triggerFormUpdate"/>
+                    <label for="numberElements">Number of Elements:</label><input id="numberElements" value=5  class="triggerFormUpdate intInput"/>
                 </div>
                 <div class=checkbox-row>
-                <label for="elementsHorizontalDistance">Elements Horizontal Distance:</label><input id="elementsHorizontalDistance" value=0.05 />
+                <label for="elementsHorizontalDistance">Elements Horizontal Distance:</label><input id="elementsHorizontalDistance" value=0.05 class="floatInput" />
                 </div>
 
                 <h3>Signal Configuration</h3>
                 <div class=checkbox-row>
-                    <label for="waveSpeed">Wave Speed:</label><input id="waveSpeed" value=3e8 class="triggerFormUpdate" />
+                    <label for="waveSpeed">Wave Speed:</label><input id="waveSpeed" value=3e8 class="triggerFormUpdate floatInput" />
                 </div>
                 <div class=checkbox-row>
-                    <label for="carrierFreq">Carrier Frequency:</label><input id="carrierFreq" value=3e9 class="triggerFormUpdate" />
+                    <label for="carrierFreq">Carrier Frequency:</label><input id="carrierFreq" value=3e9 class="triggerFormUpdate floatInput" />
                 </div>
                 <label for="customFeedsSelect">Custom Feeds:</label><input type="checkbox" id="customFeedsSelect" class="triggerFormUpdate">
                 <textarea id="customFeedsField" style="display:none;" class="triggerFormUpdate"></textarea>
                 <div class=checkbox-row>
-                    <label for="wavefrontAngle">Wavefront Angle:</label><input id="wavefrontAngle"/>
+                    <label for="wavefrontAngle">Wavefront Angle:</label><input id="wavefrontAngle" class="triggerFormUpdate floatInput"/>
                 </div>
                 <div class=checkbox-row>
-                    <label for="phaseVariationByElement">Phase Variation for each element:</label><input id="phaseVariationByElement" />
+                    <label for="phaseVariationByElement">Phase Variation By Element:</label><input id="phaseVariationByElement" class="floatInput" />
                 </div>
+                <h3>Performance Options:</h3>
+                <div class=checkbox-row>
+                    <label for="resolution">Resolution:</label><input id="resolution" value=3 class="triggerFormUpdate intInput" />
+                </div>
+                <div class=checkbox-row>
+                    <label for="nthreads">Number of Threads:</label><input id="nthreads" value=4 class="triggerFormUpdate intInput" />
+                </div>
+
             </div>
             <div id="toggleDiv"><a href="#" id="bobin"><img src="gear.svg" width=64/></a></div>
         </div>
