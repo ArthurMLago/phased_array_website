@@ -1,7 +1,27 @@
 
-var simulatedWorldStartX = -0.1;
-var simulatedWorldStartY = -.5;
-var DrawScale = 100;
+
+var formConfigurations = {
+    drawElectricField: false,
+    drawMagnitude: false,
+    drawSinusoidPeak: false,
+    drawSinusoidPeakSkips: 5,
+    drawWavefronts: false,
+    drawWavefrontsSkips: 5,
+    antennas: [],
+    waveSpeed: 2,
+    carrierFreq: 2,
+    feeds: [],
+    angles: [],
+    resolution: 1,
+    nthreads: 4
+}
+var simulationState = {
+    simulatedWorldStartX: -0.1,
+    simulatedWorldStartY: -.5,
+    DrawScale: 100,
+    simulationTime: 0
+}
+
 var startX, startY;
 var dragging;
 var movingAverageRenderTime = 1/60;
@@ -12,31 +32,26 @@ var fieldsWorker = 0;
 
 var wasmInstance = 0;
 
-var simulationTime = 0;
-const pi = 3.14159;
 
 var lastRender = Date.now();
-
-var antennaList = [[0.5, 0.5, 0], [0.6, 0.5, 0], [0.7, 0.5, 0]];
-var feedsList = [0*pi/180,50*pi/180,180 * pi / 180];
-var anglesList = [];
-
 var pendingStaticsUpdate = true;
 
+const pi = 3.14159;
+
 function sXtoP(posX){
-    return (posX - simulatedWorldStartX) * DrawScale
+    return (posX - simulationState.simulatedWorldStartX) * simulationState.DrawScale
 }
 
 function PtosX(pX){
-    return pX/DrawScale + simulatedWorldStartX;
+    return pX/simulationState.DrawScale + simulationState.simulatedWorldStartX;
 }
 
 function sYtoP(posY){
-    return (posY - simulatedWorldStartY) * DrawScale
+    return (posY - simulationState.simulatedWorldStartY) * simulationState.DrawScale
 }
 
 function PtosY(pY){
-    return pY/DrawScale + simulatedWorldStartY;
+    return pY/simulationState.DrawScale + simulationState.simulatedWorldStartY;
 }
 
 function updatePhaseVariation(){
@@ -61,10 +76,10 @@ function updateForm(){
 
         textAreaText = "";
         elementDistance = parseFloat($("#elementsHorizontalDistance").val());
-        window.antennaList = [];
+        window.formConfigurations.antennas = [];
         for (i = 0; i < $("#numberElements").val(); i++){
             posX = elementDistance * i;
-            window.antennaList.push([posX, 0, 0])
+            window.formConfigurations.antennas.push([posX, 0, 0])
             textAreaText += "(" + posX + ",0,0),"
         }
         $("#customAntennaField").val(textAreaText);
@@ -85,14 +100,14 @@ function updateForm(){
 
         angleByEl = $("#phaseVariationByElement").val()/180 * pi;
         textAreaText = "";
-        window.feedsList = []
-        window.anglesList = [];
+        window.formConfigurations.feeds = []
+        window.formConfigurations.angles = [];
         for (i = 0; i < $("#numberElements").val(); i++){
             angle = angleByEl * i;
-            f = math.exp(math.multiply(math.complex(0,1), angle));
-            textAreaText += f.toString() + ", ";
-            window.feedsList.push(f);
-            window.anglesList.push(angle);
+            f = {re:Math.cos(angle), im:Math.sin(angle)};
+            textAreaText += f.re + " + " + f.im + "i, ";
+            window.formConfigurations.feeds.push(f);
+            window.formConfigurations.angles.push(angle);
         }
         $("#customFeedsField").val(textAreaText);
     }
@@ -109,36 +124,44 @@ function updateForm(){
         $("#wavefrontDetails").hide();
     }
 
-    let canvas = document.getElementById("fieldsCanvas");
+    formConfigurations.drawElectricField = $("#drawElectricField").prop('checked');
+    formConfigurations.drawMagnitude = $("#drawMagnitude").prop('checked');
+    formConfigurations.drawSinusoidPeak = $("#drawSinusoidPeaks").prop('checked');
+    formConfigurations.drawSinusoidPeakSkips = parseInt($("#sinusoidPeakStep").val());
+    formConfigurations.drawWavefronts = $("#drawWaveFronts").prop('checked');
+    formConfigurations.drawWavefrontsSkips = parseInt($("#waveFrontStep").val());
+    formConfigurations.resolution = parseInt($("#resolution").val());
+    formConfigurations.nthreads = parseInt($("#nthreads").val());
+    formConfigurations.waveSpeed = parseFloat($("#waveSpeed").val())
+    formConfigurations.carrierFreq = parseFloat($("#carrierFreq").val())
+
     pendingStaticsUpdate = true;
     var d = {};
     d.command = "updateParams"
-    d.ants = antennaList;
-    d.feeds = feedsList;
-    d.startX = simulatedWorldStartX;
-    d.startY = simulatedWorldStartY;
-    d.drawScale = DrawScale;
+    d.ants = formConfigurations.antennas;
+    d.feeds = formConfigurations.feeds;
+    d.startX = simulationState.simulatedWorldStartX;
+    d.startY = simulationState.simulatedWorldStartY;
+    d.drawScale = simulationState.DrawScale;
+    let canvas = document.getElementById("fieldsCanvas");
     d.width = canvas.width;
     d.height = canvas.height;
-    d.carrierFreq = $("#carrierFreq").val();
-    d.waveSpeed = $("#waveSpeed").val();
-    d.resolution = 2;
-    console.log("should be sending");
+    d.carrierFreq = formConfigurations.carrierFreq;
+    d.waveSpeed = formConfigurations.waveSpeed;
+    d.resolution = formConfigurations.resolution;
+    d.nthreads = formConfigurations.nthreads;
     if (window.fieldsWorker instanceof Worker){
         if (!alreadyProcessing){
             console.log("Sending updateparams to worker")
             window.fieldsWorker.postMessage(d);
-            if ($("#drawMagnitude").prop('checked')){
+            if (formConfigurations.drawMagnitude){
                 window.fieldsWorker.postMessage({command:"getMag"});
                 alreadyProcessing = true;
                 window.fieldsWorker.onmessage = function(e) {
-                        //console.log(e.data);
-                        let canvas = document.getElementById("fieldsCanvas");
+                        console.log(e.data)
                         let context = canvas.getContext("2d");
                         let img = new ImageData(new Uint8ClampedArray(e.data), canvas.width,canvas.height);
-                        //context.clearRect(0, 0, canvas.width, canvas.height);
                         context.putImageData(img, 0, 0);
-                        //context.stroke();
                         alreadyProcessing = false;
                         if (pendingProcessing){
                             updateForm();
@@ -160,16 +183,16 @@ function animate(){
     movingAverageRenderTime = movingAverageRenderTime * 0.99 + delta * 0.01;
     //console.log("averageFPS:" + 1/movingAverageRenderTime*1e3);
 
-    simulationTime += delta/1000 /3e9
+    simulationState.simulationTime += delta/1000 /3e9
 
     if (pendingStaticsUpdate){
         drawStaticElements();
         pendingStaticsUpdate = false;
     }
 
-    if ($("#drawElectricField").prop('checked')){
+    if (formConfigurations.drawElectricField){
         if (window.fieldsWorker instanceof Worker){
-            window.fieldsWorker.postMessage({command:"getField", time:simulationTime});
+            window.fieldsWorker.postMessage({command:"getField", time:simulationState.simulationTime});
             window.fieldsWorker.onmessage = function(e) {
                     //console.log(e.data);
                     let canvas = document.getElementById("fieldsCanvas");
@@ -200,8 +223,8 @@ function drawStaticElements(){
     context.beginPath();
 
     context.strokeStyle = "#eeeeff";
-    for (var i = 0; i < antennaList.length; i++) {
-        const ant = antennaList[i];
+    for (var i = 0; i < formConfigurations.antennas.length; i++) {
+        const ant = formConfigurations.antennas[i];
         context.moveTo(sXtoP(ant[0]), sYtoP(ant[1]));
         context.lineTo(sXtoP(ant[0]), sYtoP(ant[1]) + 30);
         context.moveTo(sXtoP(ant[0]), sYtoP(ant[1]) + 15);
@@ -214,7 +237,7 @@ function drawStaticElements(){
         context.textAlign = "center"
         context.textBaseline = "middle";
         context.fillStyle = "orange";
-        context.fillText(((anglesList[i] * 180 / pi)%360).toFixed(1), sXtoP(ant[0]), sYtoP(ant[1]) + 50);
+        context.fillText(((formConfigurations.angles[i] * 180 / pi)%360).toFixed(1), sXtoP(ant[0]), sYtoP(ant[1]) + 50);
     }
     context.stroke();
 }
@@ -228,29 +251,33 @@ function animateDiagrams(){
     context.beginPath();
 
     // Draw wave peaks
-    var waveLen = $("#waveSpeed").val() / $("#carrierFreq").val();
-    var steps = $("#sinusoidPeakStep").val();
-    var distancePeaks = waveLen * steps;
-    for (var i = 0; i < antennaList.length; i++) {
-        var ant = antennaList[i];
-        var elementPhase = simulationTime * 2 * pi * $("#carrierFreq").val() - anglesList[i];
-        var firstRadius = ((elementPhase / 2 / pi * waveLen) + 10*distancePeaks) % (distancePeaks);
+    if (formConfigurations.drawSinusoidPeak){
+        var waveLen = formConfigurations.waveSpeed / formConfigurations.carrierFreq;
+        var steps = formConfigurations.drawSinusoidPeakSkips;
+        var distancePeaks = waveLen * steps;
+        for (var i = 0; i < formConfigurations.antennas.length; i++) {
+            var ant = formConfigurations.antennas[i];
+            var elementPhase = simulationState.simulationTime * 2 * pi * formConfigurations.carrierFreq - formConfigurations.angles[i];
+            var firstRadius = ((elementPhase / 2 / pi * waveLen) + 10*distancePeaks) % (distancePeaks);
 
-        var maxRadius = Math.max(
-            (PtosX(0) - ant[0]) * (PtosX(0) - ant[0]) + (PtosY(0) - ant[1]) * (PtosY(0) - ant[1]),
-            (PtosX(0) - ant[0]) * (PtosX(0) - ant[0]) + (PtosY(canvas.height) - ant[1]) * (PtosY(canvas.height) - ant[1]),
-            (PtosX(canvas.width) - ant[0]) * (PtosX(canvas.width) - ant[0]) + (PtosY(canvas.height) - ant[1]) * (PtosY(canvas.height) - ant[1]),
-            (PtosX(canvas.width) - ant[0]) * (PtosX(canvas.width) - ant[0]) + (PtosY(0) - ant[1]) * (PtosY(0) - ant[1])
-        );
-        var j = 0;
-        context.strokeStyle = "#dd4455";
-        while(firstRadius + j * distancePeaks < maxRadius){
-            context.moveTo(sXtoP(ant[0] + firstRadius + j * distancePeaks), sYtoP(ant[1]));
-            context.arc(sXtoP(ant[0]), sYtoP(ant[1]), (firstRadius + j * distancePeaks) * DrawScale, 0, 2*pi, false);
-           j++;
+            var maxRadius = Math.max(
+                (PtosX(0) - ant[0]) * (PtosX(0) - ant[0]) + (PtosY(0) - ant[1]) * (PtosY(0) - ant[1]),
+                (PtosX(0) - ant[0]) * (PtosX(0) - ant[0]) + (PtosY(canvas.height) - ant[1]) * (PtosY(canvas.height) - ant[1]),
+                (PtosX(canvas.width) - ant[0]) * (PtosX(canvas.width) - ant[0]) + (PtosY(canvas.height) - ant[1]) * (PtosY(canvas.height) - ant[1]),
+                (PtosX(canvas.width) - ant[0]) * (PtosX(canvas.width) - ant[0]) + (PtosY(0) - ant[1]) * (PtosY(0) - ant[1])
+            );
+            var j = 0;
+            context.strokeStyle = "#dd4455";
+            while(firstRadius + j * distancePeaks < maxRadius){
+                context.moveTo(sXtoP(ant[0] + firstRadius + j * distancePeaks), sYtoP(ant[1]));
+                context.arc(sXtoP(ant[0]), sYtoP(ant[1]), (firstRadius + j * distancePeaks) * simulationState.DrawScale, 0, 2*pi, false);
+            j++;
+            }
         }
     }
-    context.stroke();
+    if (formConfigurations.drawSinusoidPeak || formConfigurations.drawWavefronts){
+        context.stroke();
+    }
 }
 
 function restartWorker(){
@@ -278,8 +305,8 @@ function onMouseUp(event){
 
 function onMouseMove(event){
     if (window.dragging){
-        window.simulatedWorldStartX -= (event.clientX - startX) / DrawScale
-        window.simulatedWorldStartY -= (event.clientY - startY) / DrawScale
+        window.simulationState.simulatedWorldStartX -= (event.clientX - startX) / simulationState.DrawScale
+        window.simulationState.simulatedWorldStartY -= (event.clientY - startY) / simulationState.DrawScale
         window.pendingStaticsUpdate = true;
     }
     startX = event.clientX;
@@ -307,7 +334,7 @@ $(function(){
         updateForm();
     });
 
-    $("#bobin").click(function(){$("#configDiv").animate({width:'toggle'},350)});
+    $("#toggleConfigurationWindow").click(function(){$("#configDiv").animate({width:'toggle'},350)});
     resizeCanvas();
     window.addEventListener('resize', resizeCanvas, false);
 
@@ -332,7 +359,7 @@ $(function(){
             wasm_filename += "_bm";
         }
         // Threads will only work if we also have shared memories available:
-        if (ret[2] && crossOriginIsolated){
+        if (ret[2] && crossOriginIsolated && false){
             wasm_filename += "_th";
         }
         wasm_filename += ".wasm";
@@ -356,14 +383,14 @@ $(function(){
     canvas.addEventListener('mousemove', onMouseMove, false);
 
     canvas.addEventListener('wheel',function(event){
-        let lastDrawScale = window.DrawScale;
+        let lastDrawScale = window.simulationState.DrawScale;
         let canvas = document.getElementById("diagramCanvas");
 
         let mouseX = PtosX(window.startX);
         let mouseY = PtosY(window.startY);
-        window.DrawScale *= Math.pow(1.01, -event.deltaY/10);
-        simulatedWorldStartX = mouseX - window.startX/window.DrawScale
-        simulatedWorldStartY = mouseY - window.startY/window.DrawScale
+        window.simulationState.DrawScale *= Math.pow(1.01, -event.deltaY/10);
+        simulationState.simulatedWorldStartX = mouseX - window.startX/window.simulationState.DrawScale
+        simulationState.simulatedWorldStartY = mouseY - window.startY/window.simulationState.DrawScale
 
         window.pendingStaticsUpdate = true;
         updateForm();
