@@ -173,36 +173,6 @@ function updateForm(){
 }
 
 function workerCallback(e){
-
-                //window.fieldsWorker.onmessage = function(e) {
-                        //console.log(e.data)
-                        //let img = new ImageData(new Uint8ClampedArray(e.data), canvas.width,canvas.height);
-                        //context.putImageData(img, 0, 0);
-                        //alreadyProcessing = false;
-                        //if (pendingProcessing){
-                            //updateForm();
-                            //pendingProcessing = false;
-                        //}
-                    //};
-    //
-    //
-    //
-            //window.fieldsWorker.onmessage = function(e) {
-                //console.log("received the fields draw message");
-                //if (formConfigurations.drawElectricField){
-                    //console.log("we still want to draw");
-                    //let canvas = document.getElementById("fieldsCanvas");
-                    //let context = canvas.getContext("2d");
-                    //let img = new ImageData(new Uint8ClampedArray(e.data), canvas.width,canvas.height);
-                    //context.putImageData(img, 0, 0);
-                //}
-                //animateDiagrams();
-                //requestAnimationFrame(animate);
-                //console.log("animate1");
-            //};
-
-    console.log("callback called")
-
     alreadyProcessing = false;
     if (e.data.type == "field"){
         if (formConfigurations.drawElectricField){
@@ -309,18 +279,31 @@ function animateDiagrams(){
             var elementPhase = simulationState.simulationTime * 2 * pi * formConfigurations.carrierFreq - formConfigurations.angles[i];
             var firstRadius = ((elementPhase / 2 / pi * waveLen) + 10*distancePeaks) % (distancePeaks);
 
+            // If antenna is not visible, we may be able to skip the first circles:
+            if ((ant[0] < PtosX(0)) || (ant[0] > PtosX(canvas.width)) || (ant[1] < PtosY(0)) || (ant[1] > PtosY(canvas.height))){
+                //var minRadius = Math.max(
+                    //Math.min(Math.abs(PtosX(0) - ant[0]), Math.abs(PtosX(canvas.width) - ant[0])),
+                    //Math.min(Math.abs(PtosY(0) - ant[1]), Math.abs(PtosY(canvas.height) - ant[1]))
+                //);
+                var minRadius = (Math.max(0, Math.max(PtosX(0) - ant[0], ant[0] - (PtosX(canvas.width)))) ** 2
+                  + Math.max(0, Math.max(PtosY(0) - ant[1], ant[1] - (PtosY(canvas.height)))) ** 2)**.5;
+                firstRadius = Math.max(0, Math.floor((minRadius - firstRadius) / distancePeaks)) * distancePeaks + firstRadius;
+            }
+
             var maxRadius = Math.max(
-                (PtosX(0) - ant[0]) * (PtosX(0) - ant[0]) + (PtosY(0) - ant[1]) * (PtosY(0) - ant[1]),
-                (PtosX(0) - ant[0]) * (PtosX(0) - ant[0]) + (PtosY(canvas.height) - ant[1]) * (PtosY(canvas.height) - ant[1]),
-                (PtosX(canvas.width) - ant[0]) * (PtosX(canvas.width) - ant[0]) + (PtosY(canvas.height) - ant[1]) * (PtosY(canvas.height) - ant[1]),
-                (PtosX(canvas.width) - ant[0]) * (PtosX(canvas.width) - ant[0]) + (PtosY(0) - ant[1]) * (PtosY(0) - ant[1])
+                    Math.pow(PtosX(0) - ant[0], 2) + Math.pow(PtosY(0) - ant[1], 2),
+                    Math.pow(PtosX(0) - ant[0], 2) + Math.pow(PtosY(canvas.height) - ant[1],2),
+                    Math.pow(PtosX(canvas.width) - ant[0], 2) + Math.pow(PtosY(canvas.height) - ant[1], 2),
+                    Math.pow(PtosX(canvas.width) - ant[0], 2) + Math.pow(PtosY(0) - ant[1], 2),
             );
+            maxRadius = Math.pow(maxRadius, .5);
+
             var j = 0;
             context.strokeStyle = "#dd4455";
             while(firstRadius + j * distancePeaks < maxRadius){
                 context.moveTo(sXtoP(ant[0] + firstRadius + j * distancePeaks), sYtoP(ant[1]));
                 context.arc(sXtoP(ant[0]), sYtoP(ant[1]), (firstRadius + j * distancePeaks) * simulationState.DrawScale, 0, 2*pi, false);
-            j++;
+                j++;
             }
         }
     }
@@ -347,10 +330,6 @@ function restartWorker(){
     window.fieldsWorker.onmessage = workerCallback;
     window.fieldsWorker.postMessage({command:"init", module:window.fieldsModule});
     //window.fieldsWorker.postMessage(["updateParams", window.fieldsModule]);
-
-}
-
-function drawMagnitudes(){
 
 }
 
