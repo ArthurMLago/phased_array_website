@@ -26,9 +26,10 @@ var startX, startY;
 var dragging;
 var movingAverageRenderTime = 1/60;
 var alreadyProcessing = false;
-var pendingProcessing = false;
+var pendingProcessing = true;
 
 var fieldsWorker = 0;
+var fieldsWorkerReady = false;
 
 var wasmInstance = 0;
 
@@ -135,6 +136,13 @@ function updateForm(){
     formConfigurations.waveSpeed = parseFloat($("#waveSpeed").val())
     formConfigurations.carrierFreq = parseFloat($("#carrierFreq").val())
 
+    let canvas = document.getElementById("fieldsCanvas");
+    let context = canvas.getContext("2d");
+
+    if (!formConfigurations.drawMagnitude && !formConfigurations.drawElectricField){
+        context.clearRect(0, 0, canvas.width, canvas.height);
+    }
+
     pendingStaticsUpdate = true;
     var d = {};
     d.command = "updateParams"
@@ -143,31 +151,19 @@ function updateForm(){
     d.startX = simulationState.simulatedWorldStartX;
     d.startY = simulationState.simulatedWorldStartY;
     d.drawScale = simulationState.DrawScale;
-    let canvas = document.getElementById("fieldsCanvas");
     d.width = canvas.width;
     d.height = canvas.height;
     d.carrierFreq = formConfigurations.carrierFreq;
     d.waveSpeed = formConfigurations.waveSpeed;
     d.resolution = formConfigurations.resolution;
     d.nthreads = formConfigurations.nthreads;
-    if (window.fieldsWorker instanceof Worker){
+    if (fieldsWorkerReady){
+        console.log("Sending updateparams to worker")
+        window.fieldsWorker.postMessage(d);
         if (!alreadyProcessing){
-            console.log("Sending updateparams to worker")
-            window.fieldsWorker.postMessage(d);
             if (formConfigurations.drawMagnitude){
                 window.fieldsWorker.postMessage({command:"getMag"});
                 alreadyProcessing = true;
-                window.fieldsWorker.onmessage = function(e) {
-                        console.log(e.data)
-                        let context = canvas.getContext("2d");
-                        let img = new ImageData(new Uint8ClampedArray(e.data), canvas.width,canvas.height);
-                        context.putImageData(img, 0, 0);
-                        alreadyProcessing = false;
-                        if (pendingProcessing){
-                            updateForm();
-                            pendingProcessing = false;
-                        }
-                    };
             }
         }else{
             console.log("Worker is busy, send things later");
@@ -175,6 +171,70 @@ function updateForm(){
         }
     }
 }
+
+function workerCallback(e){
+
+                //window.fieldsWorker.onmessage = function(e) {
+                        //console.log(e.data)
+                        //let img = new ImageData(new Uint8ClampedArray(e.data), canvas.width,canvas.height);
+                        //context.putImageData(img, 0, 0);
+                        //alreadyProcessing = false;
+                        //if (pendingProcessing){
+                            //updateForm();
+                            //pendingProcessing = false;
+                        //}
+                    //};
+    //
+    //
+    //
+            //window.fieldsWorker.onmessage = function(e) {
+                //console.log("received the fields draw message");
+                //if (formConfigurations.drawElectricField){
+                    //console.log("we still want to draw");
+                    //let canvas = document.getElementById("fieldsCanvas");
+                    //let context = canvas.getContext("2d");
+                    //let img = new ImageData(new Uint8ClampedArray(e.data), canvas.width,canvas.height);
+                    //context.putImageData(img, 0, 0);
+                //}
+                //animateDiagrams();
+                //requestAnimationFrame(animate);
+                //console.log("animate1");
+            //};
+
+    console.log("callback called")
+
+    alreadyProcessing = false;
+    if (e.data.type == "field"){
+        if (formConfigurations.drawElectricField){
+            let canvas = document.getElementById("fieldsCanvas");
+            if (e.data.data.length == canvas.width * canvas.height * 4){
+                let context = canvas.getContext("2d");
+                let img = new ImageData(new Uint8ClampedArray(e.data.data), canvas.width,canvas.height);
+                context.putImageData(img, 0, 0);
+            }
+        }
+        // If we sent a request of type field, we did not schedule an animation, so regardless of what we did,
+        // schedule one:
+        animateDiagrams();
+        requestAnimationFrame(animate);
+    }else if(e.data.type == "mag"){
+        if (formConfigurations.drawMagnitude){
+            let canvas = document.getElementById("fieldsCanvas");
+            if (e.data.data.length == canvas.width * canvas.height * 4){
+                let context = canvas.getContext("2d");
+                let img = new ImageData(new Uint8ClampedArray(e.data.data), canvas.width,canvas.height);
+                context.putImageData(img, 0, 0);
+            }
+        }
+    }else if(e.data.type == "ready"){
+        fieldsWorkerReady = true;
+    }
+    if (pendingProcessing){
+        updateForm();
+        pendingProcessing = false;
+    }
+}
+
 
 function animate(){
     let delta = Date.now() - lastRender;
@@ -191,27 +251,16 @@ function animate(){
     }
 
     if (formConfigurations.drawElectricField){
-        if (window.fieldsWorker instanceof Worker){
+        if (fieldsWorkerReady){
             window.fieldsWorker.postMessage({command:"getField", time:simulationState.simulationTime});
-            window.fieldsWorker.onmessage = function(e) {
-                    //console.log(e.data);
-                    let canvas = document.getElementById("fieldsCanvas");
-                    let context = canvas.getContext("2d");
-                    let img = new ImageData(new Uint8ClampedArray(e.data), canvas.width,canvas.height);
-                    context.putImageData(img, 0, 0);
-                    animateDiagrams();
-                    requestAnimationFrame(animate);
-                };
+        }else{
+            animateDiagrams();
+            requestAnimationFrame(animate);
         }
-    }
-    else{
+    }else{
         animateDiagrams();
         requestAnimationFrame(animate);
     }
-    //drawFields()
-
-
-
 }
 
 function drawStaticElements(){
@@ -278,6 +327,15 @@ function animateDiagrams(){
     if (formConfigurations.drawSinusoidPeak || formConfigurations.drawWavefronts){
         context.stroke();
     }
+    // Draw FPS:
+    //context.moveTo(canvas.width, 32);
+    context.textAlign = "end";
+    context.textBaseline = "top";
+    context.fillStyle = "#dddddd";
+    context.fillText((1/movingAverageRenderTime * 1e3).toFixed(2) + " FPS", canvas.width - 16, 0);
+
+
+    // Grid:
 }
 
 function restartWorker(){
@@ -286,6 +344,7 @@ function restartWorker(){
     }
     window.fieldsWorker = 0;
     window.fieldsWorker = new Worker("fieldsWorker.js");
+    window.fieldsWorker.onmessage = workerCallback;
     window.fieldsWorker.postMessage({command:"init", module:window.fieldsModule});
     //window.fieldsWorker.postMessage(["updateParams", window.fieldsModule]);
 
@@ -308,6 +367,7 @@ function onMouseMove(event){
         window.simulationState.simulatedWorldStartX -= (event.clientX - startX) / simulationState.DrawScale
         window.simulationState.simulatedWorldStartY -= (event.clientY - startY) / simulationState.DrawScale
         window.pendingStaticsUpdate = true;
+        //animate();
     }
     startX = event.clientX;
     startY = event.clientY;
@@ -328,6 +388,20 @@ function resizeCanvas() {
 
 $(function(){
     $(".triggerFormUpdate").change(function() {updateForm();});
+    $("#drawMagnitude").change(function(){
+        console.log("tihs happened");
+        if ($("#drawMagnitude").prop('checked')){
+            $("#drawElectricField").prop('checked', false);;
+        }
+        updateForm();
+    });
+    $("#drawElectricField").change(function(){
+        console.log("that happened");
+        if ($("#drawElectricField").prop('checked')){
+            $("#drawMagnitude").prop('checked', false);;
+        }
+        updateForm();
+    });
     $("#phaseVariationByElement").change(function(){
         var wavefrontAngle = Math.asin($("#phaseVariationByElement").val()/180 * pi * $("#waveSpeed").val() / $("#carrierFreq").val() / $("#elementsHorizontalDistance").val() / 2 / pi);
         $("#wavefrontAngle").val(wavefrontAngle * 180 / pi);

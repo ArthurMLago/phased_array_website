@@ -78,6 +78,7 @@ onmessage = (e) => {
                 console.log(globals.bigMem.buffer.byteLength);
             });
             globals.alreadySetup = false;
+            postMessage({type: "ready"});
             break;
         case "updateParams":
             // ws must be ready:
@@ -99,8 +100,7 @@ onmessage = (e) => {
                     }
                 }
                 globals.wsInstance.exports.getMagnitudeImage(globals.outOffset);
-                console.log(globals.outImage)
-                postMessage(globals.outImage);
+                postMessage({type: "mag", data: globals.outImage});
             }
             break;
         case "getField":
@@ -114,7 +114,7 @@ onmessage = (e) => {
                     }
                 }
                 globals.wsInstance.exports.getFieldImage(e.data.time, globals.outOffset);
-                postMessage(globals.outImage);
+                postMessage({type: "field", data: globals.outImage});
             }
 
             break;
