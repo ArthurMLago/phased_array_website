@@ -53,6 +53,22 @@ function sendUpdate(data){
     globals.alreadySetup = true;
 }
 
+function checkReady(){
+    if (globals.wsInstance != 0){
+        if (globals.alreadySetup == false){
+            if (globals.savedUpdate != 0){
+                sendUpdate(globals.savedUpdate);
+            }else{
+                console.log("data requested from wasm, but no updateParams was done, and we have none queue, not cool");
+                return false;
+            }
+        }
+        return true;
+    }else{
+        return false;
+    }
+}
+
 onmessage = (e) => {
     console.log('Message received from main script');
     console.log(e.data);
@@ -78,7 +94,7 @@ onmessage = (e) => {
                 console.log(globals.bigMem.buffer.byteLength);
             });
             globals.alreadySetup = false;
-            postMessage({type: "ready"});
+            postMessage({type: "ready", callback: e.data.callback});
             break;
         case "updateParams":
             // ws must be ready:
@@ -89,35 +105,43 @@ onmessage = (e) => {
             }
             break;
         case "getMag":
-            console.log("getMag")
-            if (globals.wsInstance != 0){
-                if (globals.alreadySetup == false){
-                    if (globals.savedUpdate != 0){
-                        sendUpdate(globals.savedUpdate);
-                    }else{
-                        console.log("getMag called, no updateParams was done, and we have none queue, not cool");
-                        return;
-                    }
-                }
+            if (checkReady()){
                 globals.wsInstance.exports.getMagnitudeImage(globals.outOffset);
-                postMessage({type: "mag", data: globals.outImage});
+                postMessage({type: "mag", data: globals.outImage, callback: e.data.callback});
             }
             break;
         case "getField":
-            if (globals.wsInstance != 0){
-                if (globals.alreadySetup == false){
-                    if (globals.savedUpdate != 0){
-                        sendUpdate(globals.savedUpdate);
-                    }else{
-                        console.log("getField called, no updateParams was done, and we have none queue, not cool");
-                        return;
-                    }
-                }
+            if (checkReady()){
                 globals.wsInstance.exports.getFieldImage(e.data.time, globals.outOffset);
-                postMessage({type: "field", data: globals.outImage});
+                postMessage({type: "field", data: globals.outImage, callback: e.data.callback});
             }
-
             break;
+        case "getMouse":
+            if (checkReady()){
+                let address = globals.wsInstance.exports.getMousePositionInfo(e.data.t, e.data.mx, e.data.my, e.data.cx, e.data.cy);
+                const mouseStruct = new Float32Array(globals.bigMem.buffer, address, 7);
+                ret = {
+                    type: "mouse",
+                    data:{
+                        x: e.data.x,
+                        y: e.data.y,
+                        magnitude: mouseStruct[0],
+                        initial_phase: mouseStruct[1],
+                        phase: mouseStruct[2],
+                        magdb: mouseStruct[3],
+                        re: mouseStruct[4],
+                        im: mouseStruct[5],
+                        far_field_mag: mouseStruct[6],
+                        far_field_magdb: mouseStruct[7],
+                        azimuth: mouseStruct[8],
+                        distance: mouseStruct[9]
+                    },
+                    callback: e.data.callback
+                };
+                postMessage(ret);
+            }
+            break;
+
 
     }
 }

@@ -41,13 +41,13 @@
                 <div class=checkbox-row>
                     <label for="drawSinusoidPeaks">Draw Sinusoid Peaks:</label><input type="checkbox" id="drawSinusoidPeaks" class="triggerFormUpdate">
                     <div id="sinusoidPeakDetails" class=checkbox-extrainfo style="display:none;">
-                        <label for="sinusoidPeakStep">Every</label><input id="sinusoidPeakStep"  class="triggerFormUpdate intInput"/> peaks
+                        <label for="sinusoidPeakStep">Every</label><input id="sinusoidPeakStep" type="number" min=1 class="triggerFormUpdate intInput" value=10 /> peaks
                     </div>
                 </div>
                 <div class=checkbox-row>
                     <label for="drawWaveFronts">Draw Wavefronts:</label><input type="checkbox" id="drawWaveFronts" class="triggerFormUpdate">
                     <div id="wavefrontDetails" class=checkbox-extrainfo style="display:none;">
-                        <label for="waveFrontStep">Every</label><input id="waveFrontStep"  class="triggerFormUpdate intInput"/> peaks
+                        <label for="waveFrontStep">Every</label><input id="waveFrontStep" type="number" min=1 class="triggerFormUpdate intInput" value=10 /> peaks
                     </div>
                 </div>
 
@@ -57,7 +57,7 @@
                 <label for="customAntennaSelect">Custom Antennas:</label><input type="checkbox" id="customAntennaSelect" class="triggerFormUpdate">
                 <textarea id="customAntennaField" style="display:none;" class="triggerFormUpdate"></textarea>
                 <div class=checkbox-row>
-                    <label for="numberElements">Number of Elements:</label><input id="numberElements" value=5  class="triggerFormUpdate intInput"/>
+                    <label for="numberElements">Number of Elements:</label><input id="numberElements" type="Number" min=0 value=5 class="triggerFormUpdate intInput"/>
                 </div>
                 <div class=checkbox-row>
                 <label for="elementsHorizontalDistance">Elements Horizontal Distance:</label><input id="elementsHorizontalDistance" value=0.05 class="floatInput" />
@@ -80,10 +80,10 @@
                 </div>
                 <h3>Performance Options:</h3>
                 <div class=checkbox-row>
-                    <label for="resolution">Resolution:</label><input id="resolution" value=3 class="triggerFormUpdate intInput" />
+                    <label for="resolution">Resolution:</label><input id="resolution" type="Number" min=1 value=3 class="triggerFormUpdate intInput" />
                 </div>
                 <div class=checkbox-row>
-                    <label for="nthreads">Number of Threads:</label><input id="nthreads" value=4 class="triggerFormUpdate intInput" />
+                    <label for="nthreads">Number of Threads:</label><input id="nthreads" type="Number" min=1 value=4 class="triggerFormUpdate intInput" />
                 </div>
 
             </div>

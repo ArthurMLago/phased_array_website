@@ -13,7 +13,9 @@ var formConfigurations = {
     feeds: [],
     angles: [],
     resolution: 1,
-    nthreads: 4
+    nthreads: 4,
+    antenna_center_x: 0,
+    antenna_center_y: 0
 }
 var simulationState = {
     simulatedWorldStartX: -0.1,
@@ -27,15 +29,17 @@ var dragging;
 var movingAverageRenderTime = 1/60;
 var alreadyProcessing = false;
 var pendingProcessing = true;
+var pendingMouseUpdate = false;
+var mouseStats = {};
 
 var fieldsWorker = 0;
 var fieldsWorkerReady = false;
 
-var wasmInstance = 0;
-
-
 var lastRender = Date.now();
 var pendingStaticsUpdate = true;
+
+var workerPromisesResolves = {};
+var globalMsgId = 0;
 
 const pi = 3.14159;
 
@@ -125,6 +129,7 @@ function updateForm(){
         $("#wavefrontDetails").hide();
     }
 
+
     formConfigurations.drawElectricField = $("#drawElectricField").prop('checked');
     formConfigurations.drawMagnitude = $("#drawMagnitude").prop('checked');
     formConfigurations.drawSinusoidPeak = $("#drawSinusoidPeaks").prop('checked');
@@ -135,6 +140,28 @@ function updateForm(){
     formConfigurations.nthreads = parseInt($("#nthreads").val());
     formConfigurations.waveSpeed = parseFloat($("#waveSpeed").val())
     formConfigurations.carrierFreq = parseFloat($("#carrierFreq").val())
+
+
+    var minx = formConfigurations.antennas[0][0];
+    var maxx = formConfigurations.antennas[0][0];
+    var miny = formConfigurations.antennas[0][1];
+    var maxy = formConfigurations.antennas[0][1];
+    formConfigurations.antennas.forEach(function(e){
+        if (e[0] > maxx){
+            maxx = e[0];
+        }
+        if (e[0] < minx){
+            minx = e[0];
+        }
+        if (e[1] > maxy){
+            maxy = e[1];
+        }
+        if (e[1] < miny){
+            miny = e[1];
+        }
+    });
+    formConfigurations.antenna_center_x = (maxx + minx) / 2
+    formConfigurations.antenna_center_y = (maxy + miny) / 2
 
     let canvas = document.getElementById("fieldsCanvas");
     let context = canvas.getContext("2d");
@@ -159,16 +186,27 @@ function updateForm(){
     d.nthreads = formConfigurations.nthreads;
     if (fieldsWorkerReady){
         console.log("Sending updateparams to worker")
-        window.fieldsWorker.postMessage(d);
+        sendToWorker(d);
         if (!alreadyProcessing){
             if (formConfigurations.drawMagnitude){
-                window.fieldsWorker.postMessage({command:"getMag"});
+                sendToWorker({command:"getMag"});
                 alreadyProcessing = true;
             }
         }else{
             console.log("Worker is busy, send things later");
             pendingProcessing = true;
         }
+    }
+}
+
+function sendToWorker(data, resolve){
+    if (typeof resolve === "function"){
+        workerPromisesResolves[globalMsgId] = resolve;
+        data.callback = globalMsgId
+        globalMsgId = (globalMsgId + 1) % 10000;
+    }
+    if (fieldsWorkerReady){
+        window.fieldsWorker.postMessage(data);
     }
 }
 
@@ -183,10 +221,6 @@ function workerCallback(e){
                 context.putImageData(img, 0, 0);
             }
         }
-        // If we sent a request of type field, we did not schedule an animation, so regardless of what we did,
-        // schedule one:
-        animateDiagrams();
-        requestAnimationFrame(animate);
     }else if(e.data.type == "mag"){
         if (formConfigurations.drawMagnitude){
             let canvas = document.getElementById("fieldsCanvas");
@@ -196,8 +230,14 @@ function workerCallback(e){
                 context.putImageData(img, 0, 0);
             }
         }
+    }else if(e.data.type == "mouse"){
+        window.mouseStats = e.data.data;
     }else if(e.data.type == "ready"){
         fieldsWorkerReady = true;
+    }
+    if (typeof e.data.callback !== 'undefined') {
+        workerPromisesResolves[e.data.callback]();
+        delete workerPromisesResolves[e.data.callback];
     }
     if (pendingProcessing){
         updateForm();
@@ -206,31 +246,36 @@ function workerCallback(e){
 }
 
 
-function animate(){
-    let delta = Date.now() - lastRender;
+async function animate(){
+    let delta = performance.now() - lastRender;
     lastRender += delta;
 
-    movingAverageRenderTime = movingAverageRenderTime * 0.99 + delta * 0.01;
-    //console.log("averageFPS:" + 1/movingAverageRenderTime*1e3);
+    movingAverageRenderTime = movingAverageRenderTime * 0.97 + delta * 0.03;
 
     simulationState.simulationTime += delta/1000 /3e9
+
+
+    // About the drawing of electric field synchronously:
+    // Yes, we are drawing the electric field inside the main animation function, the one that's called 60 times a second at least
+    // Yes, this will drop frames per second, but, had we kept drawing everything but the electric field, and let
+    // the rendering of the field run a it's own pace, the user would see the sinusoid peaks diagrams be incoherent with the fields
+    // This would be bad for explaining what the sinusoid peaks really represent, so we choose coherence over responsiveness
+    var fieldDrawnPromise = 0;
+    if (formConfigurations.drawElectricField && fieldsWorkerReady){
+        fieldDrawnPromise = new Promise(function(resolve, reject){
+            sendToWorker({command:"getField", time:simulationState.simulationTime}, resolve);
+        });
+    }
+    var animatedDiagramsPromise = animateDiagrams();
 
     if (pendingStaticsUpdate){
         drawStaticElements();
         pendingStaticsUpdate = false;
     }
 
-    if (formConfigurations.drawElectricField){
-        if (fieldsWorkerReady){
-            window.fieldsWorker.postMessage({command:"getField", time:simulationState.simulationTime});
-        }else{
-            animateDiagrams();
-            requestAnimationFrame(animate);
-        }
-    }else{
-        animateDiagrams();
-        requestAnimationFrame(animate);
-    }
+    await Promise.all([fieldDrawnPromise, animatedDiagramsPromise]);
+    console.log("aaa");
+    requestAnimationFrame(animate);
 }
 
 function drawStaticElements(){
@@ -261,11 +306,15 @@ function drawStaticElements(){
     context.stroke();
 }
 
-function animateDiagrams(){
+async function animateDiagrams(){
+    if (fieldsWorkerReady){
+        var mousePromise = new Promise(function(resolve, reject){
+            sendToWorker({command: "getMouse", t: simulationState.simulationTime, mx: startX, my: startY, cx: formConfigurations.antenna_center_x, cy: formConfigurations.antenna_center_y}, resolve);
+        });
+    }
 
     let canvas = document.getElementById("diagramCanvas");
     let context = canvas.getContext("2d");
-
     context.clearRect(0, 0, canvas.width, canvas.height);
     context.beginPath();
 
@@ -281,10 +330,6 @@ function animateDiagrams(){
 
             // If antenna is not visible, we may be able to skip the first circles:
             if ((ant[0] < PtosX(0)) || (ant[0] > PtosX(canvas.width)) || (ant[1] < PtosY(0)) || (ant[1] > PtosY(canvas.height))){
-                //var minRadius = Math.max(
-                    //Math.min(Math.abs(PtosX(0) - ant[0]), Math.abs(PtosX(canvas.width) - ant[0])),
-                    //Math.min(Math.abs(PtosY(0) - ant[1]), Math.abs(PtosY(canvas.height) - ant[1]))
-                //);
                 var minRadius = (Math.max(0, Math.max(PtosX(0) - ant[0], ant[0] - (PtosX(canvas.width)))) ** 2
                   + Math.max(0, Math.max(PtosY(0) - ant[1], ant[1] - (PtosY(canvas.height)))) ** 2)**.5;
                 firstRadius = Math.max(0, Math.floor((minRadius - firstRadius) / distancePeaks)) * distancePeaks + firstRadius;
@@ -316,9 +361,19 @@ function animateDiagrams(){
     context.textBaseline = "top";
     context.fillStyle = "#dddddd";
     context.fillText((1/movingAverageRenderTime * 1e3).toFixed(2) + " FPS", canvas.width - 16, 0);
+    //console.log("before await");
+    await mousePromise;
+    context.textBaseline = "bottom";
+    context.fillStyle = "#dddddd";
+    var mouseText = "Mouse position:\nx: " + window.mouseStats.x + ", y: " + window.mouseStats.y + " (dist: " + window.mouseStats.distance + ", azimuth: " + window.mouseStats.azimuth + ")\n";
+    mouseText += "At that position:\n";
+    mouseText += "Mag: "+ window.mouseStats.magnitude + "(" + window.mouseStats.magdb + " dB), Phase: " + window.mouseStats.phase + "\n";
+    mouseText += "Electric field: " + window.mouseStats.re + ", Magnetic field: " + window.mouseStats.im + "\n";
+    mouseText += "At that azimuth in far range:\n";
+    mouseText += "Mag: " + window.mouseStats.far_field_mag + " (" + window.mouseStats.far_field_magdb + " dB)";
+    context.fillText("bob", canvas.width - 16, canvas.height - 50);
+    console.log("promise fulfilled");
 
-
-    // Grid:
 }
 
 function restartWorker(){
@@ -346,6 +401,7 @@ function onMouseMove(event){
         window.simulationState.simulatedWorldStartX -= (event.clientX - startX) / simulationState.DrawScale
         window.simulationState.simulatedWorldStartY -= (event.clientY - startY) / simulationState.DrawScale
         window.pendingStaticsUpdate = true;
+        window.pendingMouseUpdate = true;
         //animate();
     }
     startX = event.clientX;
@@ -392,7 +448,7 @@ $(function(){
     window.addEventListener('resize', resizeCanvas, false);
 
     updateForm();
-    animate();
+    requestAnimationFrame(animate);
     //
     wasmFeatureDetect.simd().then(function(hasSimd){console.log("SIMD support: " + hasSimd)});
     Promise.all([wasmFeatureDetect.simd(), wasmFeatureDetect.bulkMemory(), wasmFeatureDetect.threads()]).then(function(ret){
