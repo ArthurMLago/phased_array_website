@@ -159,6 +159,8 @@ EXTERN CONDITIONAL_EMSCRIPTEN_KEEPALIVE void updateParams(unsigned nthreads,
     saved_params.height = height;
     saved_params.carrierFreq = carrierFreq;
     saved_params.waveSpeed = waveSpeed;
+
+    saved_params.changed = 1;
 }
 
 bool checkChanged(){

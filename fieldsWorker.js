@@ -119,12 +119,12 @@ onmessage = (e) => {
         case "getMouse":
             if (checkReady()){
                 let address = globals.wsInstance.exports.getMousePositionInfo(e.data.t, e.data.mx, e.data.my, e.data.cx, e.data.cy);
-                const mouseStruct = new Float32Array(globals.bigMem.buffer, address, 7);
+                const mouseStruct = new Float32Array(globals.bigMem.buffer, address, 10);
                 ret = {
                     type: "mouse",
                     data:{
-                        x: e.data.x,
-                        y: e.data.y,
+                        x: e.data.mx,
+                        y: e.data.my,
                         magnitude: mouseStruct[0],
                         initial_phase: mouseStruct[1],
                         phase: mouseStruct[2],
@@ -138,6 +138,7 @@ onmessage = (e) => {
                     },
                     callback: e.data.callback
                 };
+                console.log(ret);
                 postMessage(ret);
             }
             break;

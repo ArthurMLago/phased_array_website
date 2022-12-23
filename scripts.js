@@ -31,6 +31,8 @@ var alreadyProcessing = false;
 var pendingProcessing = true;
 var pendingMouseUpdate = false;
 var mouseStats = {};
+var fieldData = 0;
+var printMouseData = false;
 
 var fieldsWorker = 0;
 var fieldsWorkerReady = false;
@@ -213,14 +215,7 @@ function sendToWorker(data, resolve){
 function workerCallback(e){
     alreadyProcessing = false;
     if (e.data.type == "field"){
-        if (formConfigurations.drawElectricField){
-            let canvas = document.getElementById("fieldsCanvas");
-            if (e.data.data.length == canvas.width * canvas.height * 4){
-                let context = canvas.getContext("2d");
-                let img = new ImageData(new Uint8ClampedArray(e.data.data), canvas.width,canvas.height);
-                context.putImageData(img, 0, 0);
-            }
-        }
+        window.fieldData = e.data.data;
     }else if(e.data.type == "mag"){
         if (formConfigurations.drawMagnitude){
             let canvas = document.getElementById("fieldsCanvas");
@@ -247,32 +242,37 @@ function workerCallback(e){
 
 
 async function animate(){
-    let delta = performance.now() - lastRender;
+
+    let delta = Date.now() - lastRender;
     lastRender += delta;
-
     movingAverageRenderTime = movingAverageRenderTime * 0.97 + delta * 0.03;
+    let nextSimulationTime = simulationState.simulationTime + delta/1000 /3e9;
 
-    simulationState.simulationTime += delta/1000 /3e9
-
-
-    // About the drawing of electric field synchronously:
-    // Yes, we are drawing the electric field inside the main animation function, the one that's called 60 times a second at least
-    // Yes, this will drop frames per second, but, had we kept drawing everything but the electric field, and let
-    // the rendering of the field run a it's own pace, the user would see the sinusoid peaks diagrams be incoherent with the fields
-    // This would be bad for explaining what the sinusoid peaks really represent, so we choose coherence over responsiveness
+    if (formConfigurations.drawElectricField){
+        let canvas = document.getElementById("fieldsCanvas");
+        if (window.fieldData.length == canvas.width * canvas.height * 4){
+            let context = canvas.getContext("2d");
+            let img = new ImageData(new Uint8ClampedArray(window.fieldData), canvas.width,canvas.height);
+            context.putImageData(img, 0, 0);
+        }
+    }
+    // Now that we used our data, go ahead and request for new one:
     var fieldDrawnPromise = 0;
     if (formConfigurations.drawElectricField && fieldsWorkerReady){
         fieldDrawnPromise = new Promise(function(resolve, reject){
-            sendToWorker({command:"getField", time:simulationState.simulationTime}, resolve);
+            sendToWorker({command:"getField", time: nextSimulationTime}, resolve);
         });
     }
-    var animatedDiagramsPromise = animateDiagrams();
+
+    var animatedDiagramsPromise = animateDiagrams(nextSimulationTime);
 
     if (pendingStaticsUpdate){
         drawStaticElements();
         pendingStaticsUpdate = false;
     }
 
+    simulationState.simulationTime = nextSimulationTime;
+    // We only request a new frame when all data from worker is ready:
     await Promise.all([fieldDrawnPromise, animatedDiagramsPromise]);
     console.log("aaa");
     requestAnimationFrame(animate);
@@ -304,20 +304,36 @@ function drawStaticElements(){
         context.fillText(((formConfigurations.angles[i] * 180 / pi)%360).toFixed(1), sXtoP(ant[0]), sYtoP(ant[1]) + 50);
     }
     context.stroke();
+
 }
 
-async function animateDiagrams(){
-    if (fieldsWorkerReady){
-        var mousePromise = new Promise(function(resolve, reject){
-            sendToWorker({command: "getMouse", t: simulationState.simulationTime, mx: startX, my: startY, cx: formConfigurations.antenna_center_x, cy: formConfigurations.antenna_center_y}, resolve);
-        });
-    }
-
+async function animateDiagrams(nextTime){
     let canvas = document.getElementById("diagramCanvas");
     let context = canvas.getContext("2d");
     context.clearRect(0, 0, canvas.width, canvas.height);
-    context.beginPath();
 
+    var mousePromise = 0;
+    if (window.printMouseData){
+        context.textBaseline = "bottom";
+        context.fillStyle = "#dddddd";
+        var mouseText = "Mouse position:\nx: " + window.mouseStats.x + ", y: " + window.mouseStats.y + " (dist: " + window.mouseStats.distance + ", azimuth: " + window.mouseStats.azimuth + ")\n";
+        mouseText += "At that position:\n";
+        mouseText += "Mag: "+ window.mouseStats.magnitude + "(" + window.mouseStats.magdb + " dB), Phase: " + window.mouseStats.phase + "\n";
+        mouseText += "Electric field: " + window.mouseStats.re + ", Magnetic field: " + window.mouseStats.im + "\n";
+        mouseText += "At that azimuth in far range:\n";
+        mouseText += "Mag: " + window.mouseStats.far_field_mag + " (" + window.mouseStats.far_field_magdb + " dB)";
+        context.fillText(mouseText, canvas.width - 16, canvas.height - 50);
+        console.log("promise fulfilled");
+
+        // Now that we used the mouse data, go ahead and requst new one:
+        if (fieldsWorkerReady){
+            mousePromise = new Promise(function(resolve, reject){
+                sendToWorker({command: "getMouse", t: nextTime, mx: PtosX(startX), my: PtosY(startY), cx: formConfigurations.antenna_center_x, cy: formConfigurations.antenna_center_y}, resolve);
+            });
+        }
+    }
+
+    context.beginPath();
     // Draw wave peaks
     if (formConfigurations.drawSinusoidPeak){
         var waveLen = formConfigurations.waveSpeed / formConfigurations.carrierFreq;
@@ -361,18 +377,8 @@ async function animateDiagrams(){
     context.textBaseline = "top";
     context.fillStyle = "#dddddd";
     context.fillText((1/movingAverageRenderTime * 1e3).toFixed(2) + " FPS", canvas.width - 16, 0);
-    //console.log("before await");
+
     await mousePromise;
-    context.textBaseline = "bottom";
-    context.fillStyle = "#dddddd";
-    var mouseText = "Mouse position:\nx: " + window.mouseStats.x + ", y: " + window.mouseStats.y + " (dist: " + window.mouseStats.distance + ", azimuth: " + window.mouseStats.azimuth + ")\n";
-    mouseText += "At that position:\n";
-    mouseText += "Mag: "+ window.mouseStats.magnitude + "(" + window.mouseStats.magdb + " dB), Phase: " + window.mouseStats.phase + "\n";
-    mouseText += "Electric field: " + window.mouseStats.re + ", Magnetic field: " + window.mouseStats.im + "\n";
-    mouseText += "At that azimuth in far range:\n";
-    mouseText += "Mag: " + window.mouseStats.far_field_mag + " (" + window.mouseStats.far_field_magdb + " dB)";
-    context.fillText("bob", canvas.width - 16, canvas.height - 50);
-    console.log("promise fulfilled");
 
 }
 
