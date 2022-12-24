@@ -98,13 +98,13 @@ void calculate_magnitudes(float startX, float startY, unsigned resolution, unsig
     unsigned h_c = (height + resolution - 1) / resolution;
     for (unsigned n = 0; n < h_c; n++){
         // Y position in the simulated world:
-        float sy = (n * resolution + resolution/2.0)/saved_params.drawScale + startY;
+        float sy = -(n * resolution + resolution/2.0)/saved_params.drawScale + startY;
         for (unsigned m = 0; m < w_c; m++){
             // X position in the simulated world:
             float sx = (m*resolution + resolution/2.0)/saved_params.drawScale + startX;
             // Sum antennas contributions at this position:
             struct cf64 sumAntennas = sumAntennasAt<float, struct cf64>(sx, sy);
-            // Up until now we have (something like) power, convert to amplitude:
+            // Get magnitude:
             float magnitude = sqrt(sumAntennas.re * sumAntennas.re + sumAntennas.im * sumAntennas.im)/saved_params.nAnt;
             outMag[n*w_c + m] = magnitude;
             // Get the phase:
@@ -205,8 +205,8 @@ EXTERN CONDITIONAL_EMSCRIPTEN_KEEPALIVE void getMagnitudeImage(uint8_t*out){
         }
         for (unsigned n = 0; n < h_c; n++){
             for (unsigned m = 0; m < w_c; m++){
-                // Convert to dB:
-                field[n*w_c + m] = log10(last_mag[n*w_c + m] + 0.0000001)/3 + 1;
+                // Convert to dB and then scales from 0(when -60dB or lower) to 1(when 0dB):
+                field[n*w_c + m] = log10(last_mag[n*w_c + m] + 0.0000001)*20/60 + 1;
                 // Clip:
                 if (field[n*w_c + m] < 0){
                     field[n*w_c + m] = 0;
@@ -314,15 +314,16 @@ EXTERN CONDITIONAL_EMSCRIPTEN_KEEPALIVE void getFieldImage(double t, uint8_t*out
 
 
 EXTERN CONDITIONAL_EMSCRIPTEN_KEEPALIVE void getAntennaDiagram(float* ret, unsigned divs){
-    //#if !PARALLEL_ENABLED
-    //for (int i = 0; i < divs; i++){
-        //double angle = 2 * M_PI / divs * i;
-        //struct cf64 sumAntennas = sumAntennasAt<double, struct cf64>(FAR_FIELD, y);
-    //}
-    //#else
+    #if !PARALLEL_ENABLED
+        for (int i = 0; i < divs; i++){
+            double angle = 2 * M_PI / divs * i;
+            struct cf64 sum = sumAntennasAt<double, struct cf64>(FAR_FIELD * cos(angle), FAR_FIELD * sin(angle));
+            ret[i] = 20 * log10(sqrt(sum.re * sum.re + sum.im * sum.im) + 0.0000001);
+        }
+    #else
 
 
-    //#endif
+    #endif
 }
 
 EXTERN CONDITIONAL_EMSCRIPTEN_KEEPALIVE void* getMousePositionInfo(double t, double mx, double my, double cx, double cy){
@@ -339,20 +340,26 @@ EXTERN CONDITIONAL_EMSCRIPTEN_KEEPALIVE void* getMousePositionInfo(double t, dou
         float distance;
     } ret;
     struct cf64 sumAntennas = sumAntennasAt<double, struct cf64>(mx, my);
-    ret.re = sumAntennas.re;
-    ret.im = sumAntennas.im;
-    ret.magnitude = sqrt(ret.re * ret.re + ret.im * ret.im);
-    ret.initial_phase = atan2(ret.im, ret.re);
-    ret.magdb = log10(sqrt(ret.magnitude) + 0.0000001)/3 + 1;
-    ret.phase = ret.initial_phase + 2 * M_PI * saved_params.carrierFreq * t;
+    ret.magnitude = sqrt(sumAntennas.re * sumAntennas.re + sumAntennas.im * sumAntennas.im)/saved_params.nAnt;
+    ret.initial_phase = atan2(sumAntennas.im, sumAntennas.re);
+    ret.magdb = 20 * log10(ret.magnitude + 0.0000001);
+    ret.phase = ret.initial_phase - 2 * M_PI * saved_params.carrierFreq * t;
+    ret.re = ret.magnitude * cos(ret.phase);
+    ret.im = ret.magnitude * sin(ret.phase);
 
+    // Polar stuff:
     double x = mx - cx;
     double y = my - cy;
     ret.azimuth = atan2(y,x);
     ret.distance = sqrt(x*x + y*y);
     sumAntennas = sumAntennasAt<double, struct cf64>(FAR_FIELD * cos(ret.azimuth) +cx, FAR_FIELD * sin(ret.azimuth) + cy);
-    ret.far_field_mag = sqrt(sumAntennas.re * sumAntennas.re + sumAntennas.im * sumAntennas.im);
-    ret.far_field_magdb = log10(sqrt(ret.far_field_mag) + 0.0000001)/3 + 1;
+    ret.far_field_mag = sqrt(sumAntennas.re * sumAntennas.re + sumAntennas.im * sumAntennas.im)/saved_params.nAnt;
+    ret.far_field_magdb = 20 * log10(ret.far_field_mag + 0.0000001);
+
+    // After all important calculations are done using radiants, convert to degrees for easier visualization
+    ret.phase *= 180 / M_PI;
+    ret.initial_phase *= 180 / M_PI;
+    ret.azimuth *= 180 / M_PI;
 
     return &ret;
 }

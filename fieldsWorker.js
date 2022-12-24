@@ -70,8 +70,6 @@ function checkReady(){
 }
 
 onmessage = (e) => {
-    console.log('Message received from main script');
-    console.log(e.data);
     switch(e.data.command){
         case "init":
             globals.bigMem = new WebAssembly.Memory({
@@ -138,7 +136,7 @@ onmessage = (e) => {
                     },
                     callback: e.data.callback
                 };
-                console.log(ret);
+                //console.log(ret);
                 postMessage(ret);
             }
             break;

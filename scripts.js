@@ -1,6 +1,7 @@
 
 
 var formConfigurations = {
+    animationSpeed: 1/1000,
     drawElectricField: false,
     drawMagnitude: false,
     drawSinusoidPeak: false,
@@ -30,9 +31,9 @@ var movingAverageRenderTime = 1/60;
 var alreadyProcessing = false;
 var pendingProcessing = true;
 var pendingMouseUpdate = false;
-var mouseStats = {};
+var mouseStats = 0;
 var fieldData = 0;
-var printMouseData = false;
+var printMouseData = true;
 
 var fieldsWorker = 0;
 var fieldsWorkerReady = false;
@@ -54,11 +55,11 @@ function PtosX(pX){
 }
 
 function sYtoP(posY){
-    return (posY - simulationState.simulatedWorldStartY) * simulationState.DrawScale
+    return -(posY - simulationState.simulatedWorldStartY) * simulationState.DrawScale
 }
 
 function PtosY(pY){
-    return pY/simulationState.DrawScale + simulationState.simulatedWorldStartY;
+    return -pY/simulationState.DrawScale + simulationState.simulatedWorldStartY;
 }
 
 function updatePhaseVariation(){
@@ -131,7 +132,7 @@ function updateForm(){
         $("#wavefrontDetails").hide();
     }
 
-
+    formConfigurations.animationSpeed = parseFloat($("#animSpeed").val());
     formConfigurations.drawElectricField = $("#drawElectricField").prop('checked');
     formConfigurations.drawMagnitude = $("#drawMagnitude").prop('checked');
     formConfigurations.drawSinusoidPeak = $("#drawSinusoidPeaks").prop('checked');
@@ -246,7 +247,7 @@ async function animate(){
     let delta = Date.now() - lastRender;
     lastRender += delta;
     movingAverageRenderTime = movingAverageRenderTime * 0.97 + delta * 0.03;
-    let nextSimulationTime = simulationState.simulationTime + delta/1000 /3e9;
+    let nextSimulationTime = simulationState.simulationTime + delta * formConfigurations.animationSpeed;
 
     if (formConfigurations.drawElectricField){
         let canvas = document.getElementById("fieldsCanvas");
@@ -274,7 +275,6 @@ async function animate(){
     simulationState.simulationTime = nextSimulationTime;
     // We only request a new frame when all data from worker is ready:
     await Promise.all([fieldDrawnPromise, animatedDiagramsPromise]);
-    console.log("aaa");
     requestAnimationFrame(animate);
 }
 
@@ -307,23 +307,41 @@ function drawStaticElements(){
 
 }
 
+function treatNumber(number){
+    if (typeof number === "number"){
+        if (number > 1000){
+            return number.toExponential(3).padStart(9, " ");
+        }else{
+            return number.toFixed(3).padStart(9, " ");
+        }
+    }else{
+        return "undefined";
+    }
+}
+
 async function animateDiagrams(nextTime){
     let canvas = document.getElementById("diagramCanvas");
     let context = canvas.getContext("2d");
     context.clearRect(0, 0, canvas.width, canvas.height);
 
+    var mouseTexts = []
     var mousePromise = 0;
     if (window.printMouseData){
-        context.textBaseline = "bottom";
-        context.fillStyle = "#dddddd";
-        var mouseText = "Mouse position:\nx: " + window.mouseStats.x + ", y: " + window.mouseStats.y + " (dist: " + window.mouseStats.distance + ", azimuth: " + window.mouseStats.azimuth + ")\n";
-        mouseText += "At that position:\n";
-        mouseText += "Mag: "+ window.mouseStats.magnitude + "(" + window.mouseStats.magdb + " dB), Phase: " + window.mouseStats.phase + "\n";
-        mouseText += "Electric field: " + window.mouseStats.re + ", Magnetic field: " + window.mouseStats.im + "\n";
-        mouseText += "At that azimuth in far range:\n";
-        mouseText += "Mag: " + window.mouseStats.far_field_mag + " (" + window.mouseStats.far_field_magdb + " dB)";
-        context.fillText(mouseText, canvas.width - 16, canvas.height - 50);
-        console.log("promise fulfilled");
+        if (typeof window.mouseStats === "object"){
+            //console.log(window.mouseStats);
+            mouseTexts = [
+                "Mouse position:",
+                "x: " + treatNumber(window.mouseStats.x) + ", y: " + treatNumber(window.mouseStats.y) + " (dist: " + treatNumber(window.mouseStats.distance) + ", azimuth: " + (window.mouseStats.azimuth % 360).toFixed(2).padStart(7, " ") + ")",
+                "At this position:",
+                "Mag: "+ window.mouseStats.magnitude.toFixed(2).padStart(7, " ") + "(" + window.mouseStats.magdb.toFixed(2).padStart(7," ") + " dB), Phase: " + (window.mouseStats.phase % 360).toFixed(2).padStart(7, " "),
+                "Electric field: " + window.mouseStats.re.toFixed(2).padStart(7, " ") + ", Magnetic field: " + window.mouseStats.im.toFixed(2).padStart(7, " "),
+                "At that azimuth in far range:",
+                "Mag: " + window.mouseStats.far_field_mag.toFixed(2).padStart(7, " ") + " (" + window.mouseStats.far_field_magdb.toFixed(2).padStart(7, " ") + " dB)"
+            ]
+            for (var i = 0; i < mouseTexts.length; i++){
+                context.fillText(mouseTexts[i], canvas.width - 16, canvas.height + (i -mouseTexts.length) * 16);
+            }
+        }
 
         // Now that we used the mouse data, go ahead and requst new one:
         if (fieldsWorkerReady){
@@ -339,15 +357,17 @@ async function animateDiagrams(nextTime){
         var waveLen = formConfigurations.waveSpeed / formConfigurations.carrierFreq;
         var steps = formConfigurations.drawSinusoidPeakSkips;
         var distancePeaks = waveLen * steps;
+
+        var ncircles = 0;
         for (var i = 0; i < formConfigurations.antennas.length; i++) {
             var ant = formConfigurations.antennas[i];
             var elementPhase = simulationState.simulationTime * 2 * pi * formConfigurations.carrierFreq - formConfigurations.angles[i];
             var firstRadius = ((elementPhase / 2 / pi * waveLen) + 10*distancePeaks) % (distancePeaks);
 
             // If antenna is not visible, we may be able to skip the first circles:
-            if ((ant[0] < PtosX(0)) || (ant[0] > PtosX(canvas.width)) || (ant[1] < PtosY(0)) || (ant[1] > PtosY(canvas.height))){
+            if ((ant[0] < PtosX(0)) || (ant[0] > PtosX(canvas.width)) || (ant[1] > PtosY(0)) || (ant[1] < PtosY(canvas.height))){
                 var minRadius = (Math.max(0, Math.max(PtosX(0) - ant[0], ant[0] - (PtosX(canvas.width)))) ** 2
-                  + Math.max(0, Math.max(PtosY(0) - ant[1], ant[1] - (PtosY(canvas.height)))) ** 2)**.5;
+                  + Math.max(0, Math.max(ant[1] - PtosY(0), -ant[1] + PtosY(canvas.height))) ** 2)**.5;
                 firstRadius = Math.max(0, Math.floor((minRadius - firstRadius) / distancePeaks)) * distancePeaks + firstRadius;
             }
 
@@ -365,8 +385,10 @@ async function animateDiagrams(nextTime){
                 context.moveTo(sXtoP(ant[0] + firstRadius + j * distancePeaks), sYtoP(ant[1]));
                 context.arc(sXtoP(ant[0]), sYtoP(ant[1]), (firstRadius + j * distancePeaks) * simulationState.DrawScale, 0, 2*pi, false);
                 j++;
+                ncircles++;
             }
         }
+        //console.log(ncircles);
     }
     if (formConfigurations.drawSinusoidPeak || formConfigurations.drawWavefronts){
         context.stroke();
@@ -377,6 +399,19 @@ async function animateDiagrams(nextTime){
     context.textBaseline = "top";
     context.fillStyle = "#dddddd";
     context.fillText((1/movingAverageRenderTime * 1e3).toFixed(2) + " FPS", canvas.width - 16, 0);
+
+
+    if (window.printMouseData){
+        context.fillStyle = '#000000b0';
+        context.fillRect(canvas.width - 640, canvas.height - 8 * 16 - 8,632, 8*16 + 8)
+
+        context.textBaseline = "bottom";
+        context.fillStyle = "#dddddd";
+        context.font = "16px monospace";
+        for (var i = 0; i < mouseTexts.length; i++){
+            context.fillText(mouseTexts[i], canvas.width - 16, canvas.height + (i -mouseTexts.length) * 16);
+        }
+    }
 
     await mousePromise;
 
@@ -405,7 +440,7 @@ function onMouseUp(event){
 function onMouseMove(event){
     if (window.dragging){
         window.simulationState.simulatedWorldStartX -= (event.clientX - startX) / simulationState.DrawScale
-        window.simulationState.simulatedWorldStartY -= (event.clientY - startY) / simulationState.DrawScale
+        window.simulationState.simulatedWorldStartY += (event.clientY - startY) / simulationState.DrawScale
         window.pendingStaticsUpdate = true;
         window.pendingMouseUpdate = true;
         //animate();
@@ -505,7 +540,7 @@ $(function(){
         let mouseY = PtosY(window.startY);
         window.simulationState.DrawScale *= Math.pow(1.01, -event.deltaY/10);
         simulationState.simulatedWorldStartX = mouseX - window.startX/window.simulationState.DrawScale
-        simulationState.simulatedWorldStartY = mouseY - window.startY/window.simulationState.DrawScale
+        simulationState.simulatedWorldStartY = mouseY + window.startY/window.simulationState.DrawScale
 
         window.pendingStaticsUpdate = true;
         updateForm();
