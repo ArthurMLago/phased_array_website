@@ -3,6 +3,7 @@
 #include <stdint.h>
 #ifdef PARALLEL_ENABLED
     #include <thread>
+    #include <barrier>
 #endif
 
 #ifdef __cplusplus
@@ -24,7 +25,8 @@
     #define PARALLEL_ENABLED 0
 #endif
 
-#define FAR_FIELD 500e3
+#define FAR_FIELD 1e3
+#define ANTENNA_DIAGRAM_DIVS 1800
 
 EXTERN void consolelogf(float v);
 EXTERN void consoleloga(unsigned long v);
@@ -53,6 +55,8 @@ struct global_param_struct{
     unsigned nAnt;
     struct pos *antPos;
     struct cf64 *feeds;
+    float antennaCenterX;
+    float antennaCenterY;
     float startX;
     float startY;
     float drawScale;
@@ -70,6 +74,8 @@ struct global_param_struct{
 float *last_mag = NULL;
 float *last_ph = NULL;
 float *field = NULL;
+float antennaDiagram[ANTENNA_DIAGRAM_DIVS];
+float magnitudeSumFarRange = -1;
 
 template <typename calcT, typename retT>
 inline retT sumAntennasAt(calcT x, calcT y){
@@ -90,6 +96,62 @@ inline retT sumAntennasAt(calcT x, calcT y){
         sumAntennas.im += saved_params.feeds[i].re * sin(sinFreq * dist) + saved_params.feeds[i].im * cos(sinFreq * dist);
     }
     return sumAntennas;
+}
+
+void calculateAntennaDiagram(){
+    magnitudeSumFarRange = 0;
+    #if !PARALLEL_ENABLED
+        for (int i = 0; i < ANTENNA_DIAGRAM_DIVS; i++){
+            double angle = 2 * M_PI / ANTENNA_DIAGRAM_DIVS * i;
+            struct cf64 sum = sumAntennasAt<double, struct cf64>(FAR_FIELD * cos(angle) + saved_params.antennaCenterX, FAR_FIELD * sin(angle) + saved_params.antennaCenterY);
+            antennaDiagram[i] = sqrt(sum.re * sum.re + sum.im * sum.im);
+            magnitudeSumFarRange += antennaDiagram[i];
+        }
+        magnitudeSumFarRange /= ANTENNA_DIAGRAM_DIVS;
+        // The /2 is merely for convenience, to make the peak be exactly 0dB, instead of only half power, since
+        // we are assuming an antenna that propagates both at the front and back:
+        magnitudeSumFarRange *= saved_params.nAnt / 2;
+        for (int i = 0; i < ANTENNA_DIAGRAM_DIVS; i++){
+            antennaDiagram[i] /= magnitudeSumFarRange;
+            antennaDiagram[i] = 20 * log10(antennaDiagram[i] + 0.001);
+        }
+    #else
+        // Number of elements each thread will calculate(at most, we may have underworked threads):
+        unsigned elements_per_thread = (ANTENNA_DIAGRAM_DIVS - 1 + saved_params.nthreads)/saved_params.nthreads;
+        // Spawn a bunch of threads, use C++ lambda functions
+        std::thread *tlist[saved_params.nthreads];
+        double magnitudeSumFarRangePerThread[saved_params.nthreads];
+        std::barrier sync_point(saved_params.nthreads);
+        for (int i = 0; i < saved_params.nthreads; i++){
+            tlist[i] = new std::thread([&magnitudeSumFarRangePerThread, i, elements_per_thread, &sync_point] () {
+                magnitudeSumFarRangePerThread[i] = 0;
+                for (int j = i * elements_per_thread; j < std::min((unsigned)(i + 1) * elements_per_thread, (unsigned)ANTENNA_DIAGRAM_DIVS); j++){
+                    double angle = 2 * M_PI / ANTENNA_DIAGRAM_DIVS * j;
+                    struct cf64 sum = sumAntennasAt<double, struct cf64>(FAR_FIELD * cos(angle), FAR_FIELD * sin(angle));
+                    antennaDiagram[j] = sqrt(sum.re * sum.re + sum.im * sum.im);
+                    magnitudeSumFarRangePerThread[i] += antennaDiagram[j];
+                }
+                sync_point.arrive_and_wait();
+                if (i == 0){
+                    magnitudeSumFarRange = 0;
+                    for (int j = 0; j < saved_params.nthreads; j++){
+                        magnitudeSumFarRange += magnitudeSumFarRangePerThread[j];
+                    }
+                    magnitudeSumFarRange /= ANTENNA_DIAGRAM_DIVS;
+                    magnitudeSumFarRange *= saved_params.nAnt / 2.0;
+                }
+                sync_point.arrive_and_wait();
+                for (int j = i * elements_per_thread; j < std::min((unsigned)(i + 1) * elements_per_thread, (unsigned)ANTENNA_DIAGRAM_DIVS); j++){
+                    antennaDiagram[j] /= magnitudeSumFarRange;
+                }
+            });
+        }
+        for (int i = 0; i < saved_params.nthreads; i++){
+            magnitudeSumFarRange += magnitudeSumFarRangePerThread[i];
+            tlist[i]->join();
+            delete tlist[i];
+        }
+    #endif
 }
 
 void calculate_magnitudes(float startX, float startY, unsigned resolution, unsigned width, unsigned height, float*outMag, float*outPh){
@@ -141,6 +203,8 @@ EXTERN CONDITIONAL_EMSCRIPTEN_KEEPALIVE void updateParams(unsigned nthreads,
                                                           struct cf64 *feeds,
                                                           float startX,
                                                           float startY,
+                                                          float antennaCenterX,
+                                                          float antennaCenterY,
                                                           float drawScale,
                                                           unsigned resolution,
                                                           unsigned width,
@@ -153,6 +217,8 @@ EXTERN CONDITIONAL_EMSCRIPTEN_KEEPALIVE void updateParams(unsigned nthreads,
     saved_params.feeds = feeds;
     saved_params.startX = startX;
     saved_params.startY = startY;
+    saved_params.antennaCenterX = antennaCenterX;
+    saved_params.antennaCenterY = antennaCenterY;
     saved_params.drawScale = drawScale;
     saved_params.resolution = resolution;
     saved_params.width = width;
@@ -160,7 +226,9 @@ EXTERN CONDITIONAL_EMSCRIPTEN_KEEPALIVE void updateParams(unsigned nthreads,
     saved_params.carrierFreq = carrierFreq;
     saved_params.waveSpeed = waveSpeed;
 
+    // checks if necessary:
     saved_params.changed = 1;
+    calculateAntennaDiagram();
 }
 
 bool checkChanged(){
@@ -206,11 +274,7 @@ EXTERN CONDITIONAL_EMSCRIPTEN_KEEPALIVE void getMagnitudeImage(uint8_t*out){
         for (unsigned n = 0; n < h_c; n++){
             for (unsigned m = 0; m < w_c; m++){
                 // Convert to dB and then scales from 0(when -60dB or lower) to 1(when 0dB):
-                field[n*w_c + m] = log10(last_mag[n*w_c + m] + 0.0000001)*20/60 + 1;
-                // Clip:
-                if (field[n*w_c + m] < 0){
-                    field[n*w_c + m] = 0;
-                }
+                field[n*w_c + m] = log10(last_mag[n*w_c + m] + 0.001)*20/60 + 1;
             }
         }
         createImage(field, saved_params.height, out);
@@ -234,7 +298,7 @@ EXTERN CONDITIONAL_EMSCRIPTEN_KEEPALIVE void getMagnitudeImage(uint8_t*out){
                 for (unsigned n = i * rows_per_thread; n < std::min((i + 1) * rows_per_thread, h_c); n++){
                     for (unsigned m = 0; m < w_c; m++){
                         // Log10:
-                        field[n*w_c + m] = log10(last_mag[n*w_c + m] + 0.0000001)/3 + 1;
+                        field[n*w_c + m] = log10(last_mag[n*w_c + m] + 0.001)/3 + 1;
                         // Clip:
                         if (field[n*w_c + m] < 0){
                             field[n*w_c + m] = 0;
@@ -313,20 +377,12 @@ EXTERN CONDITIONAL_EMSCRIPTEN_KEEPALIVE void getFieldImage(double t, uint8_t*out
 }
 
 
-EXTERN CONDITIONAL_EMSCRIPTEN_KEEPALIVE void getAntennaDiagram(float* ret, unsigned divs){
-    #if !PARALLEL_ENABLED
-        for (int i = 0; i < divs; i++){
-            double angle = 2 * M_PI / divs * i;
-            struct cf64 sum = sumAntennasAt<double, struct cf64>(FAR_FIELD * cos(angle), FAR_FIELD * sin(angle));
-            ret[i] = 20 * log10(sqrt(sum.re * sum.re + sum.im * sum.im) + 0.0000001);
-        }
-    #else
 
-
-    #endif
+EXTERN CONDITIONAL_EMSCRIPTEN_KEEPALIVE float* getAntennaDiagram(){
+    return antennaDiagram;
 }
 
-EXTERN CONDITIONAL_EMSCRIPTEN_KEEPALIVE void* getMousePositionInfo(double t, double mx, double my, double cx, double cy){
+EXTERN CONDITIONAL_EMSCRIPTEN_KEEPALIVE void* getMousePositionInfo(double t, double mx, double my){
     static struct ret_info{
         float magnitude;
         float initial_phase;
@@ -342,19 +398,19 @@ EXTERN CONDITIONAL_EMSCRIPTEN_KEEPALIVE void* getMousePositionInfo(double t, dou
     struct cf64 sumAntennas = sumAntennasAt<double, struct cf64>(mx, my);
     ret.magnitude = sqrt(sumAntennas.re * sumAntennas.re + sumAntennas.im * sumAntennas.im)/saved_params.nAnt;
     ret.initial_phase = atan2(sumAntennas.im, sumAntennas.re);
-    ret.magdb = 20 * log10(ret.magnitude + 0.0000001);
+    ret.magdb = 20 * log10(ret.magnitude + 0.001);
     ret.phase = ret.initial_phase - 2 * M_PI * saved_params.carrierFreq * t;
     ret.re = ret.magnitude * cos(ret.phase);
     ret.im = ret.magnitude * sin(ret.phase);
 
     // Polar stuff:
-    double x = mx - cx;
-    double y = my - cy;
+    double x = mx - saved_params.antennaCenterX;
+    double y = my - saved_params.antennaCenterY;
     ret.azimuth = atan2(y,x);
     ret.distance = sqrt(x*x + y*y);
-    sumAntennas = sumAntennasAt<double, struct cf64>(FAR_FIELD * cos(ret.azimuth) +cx, FAR_FIELD * sin(ret.azimuth) + cy);
+    sumAntennas = sumAntennasAt<double, struct cf64>(FAR_FIELD * cos(ret.azimuth) +saved_params.antennaCenterX, FAR_FIELD * sin(ret.azimuth) + saved_params.antennaCenterY);
     ret.far_field_mag = sqrt(sumAntennas.re * sumAntennas.re + sumAntennas.im * sumAntennas.im)/saved_params.nAnt;
-    ret.far_field_magdb = 20 * log10(ret.far_field_mag + 0.0000001);
+    ret.far_field_magdb = 20 * log10(ret.far_field_mag + 0.001);
 
     // After all important calculations are done using radiants, convert to degrees for easier visualization
     ret.phase *= 180 / M_PI;

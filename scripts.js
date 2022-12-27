@@ -7,6 +7,7 @@ var formConfigurations = {
     drawSinusoidPeak: false,
     drawSinusoidPeakSkips: 5,
     drawWavefronts: false,
+    drawAntennaDiagram: false,
     drawWavefrontsSkips: 5,
     antennas: [],
     waveSpeed: 2,
@@ -34,11 +35,12 @@ var pendingMouseUpdate = false;
 var mouseStats = 0;
 var fieldData = 0;
 var printMouseData = true;
+var antennaDiagram = [];
 
 var fieldsWorker = 0;
 var fieldsWorkerReady = false;
 
-var lastRender = Date.now();
+var lastRender = performance.now();
 var pendingStaticsUpdate = true;
 
 var workerPromisesResolves = {};
@@ -106,7 +108,7 @@ function updateForm(){
         $("#phaseVariationByElement").prop( "disabled", false );
 
 
-        angleByEl = $("#phaseVariationByElement").val()/180 * pi;
+        angleByEl = -$("#phaseVariationByElement").val()/180 * pi;
         textAreaText = "";
         window.formConfigurations.feeds = []
         window.formConfigurations.angles = [];
@@ -139,6 +141,7 @@ function updateForm(){
     formConfigurations.drawSinusoidPeakSkips = parseInt($("#sinusoidPeakStep").val());
     formConfigurations.drawWavefronts = $("#drawWaveFronts").prop('checked');
     formConfigurations.drawWavefrontsSkips = parseInt($("#waveFrontStep").val());
+    formConfigurations.drawAntennaDiagram = $("#drawAntennaDiagram").prop('checked');
     formConfigurations.resolution = parseInt($("#resolution").val());
     formConfigurations.nthreads = parseInt($("#nthreads").val());
     formConfigurations.waveSpeed = parseFloat($("#waveSpeed").val())
@@ -180,6 +183,8 @@ function updateForm(){
     d.feeds = formConfigurations.feeds;
     d.startX = simulationState.simulatedWorldStartX;
     d.startY = simulationState.simulatedWorldStartY;
+    d.antennaCenterX = formConfigurations.antenna_center_x;
+    d.antennaCenterY = formConfigurations.antenna_center_y;
     d.drawScale = simulationState.DrawScale;
     d.width = canvas.width;
     d.height = canvas.height;
@@ -199,6 +204,7 @@ function updateForm(){
             console.log("Worker is busy, send things later");
             pendingProcessing = true;
         }
+        sendToWorker({command:"getAntennaDiagram"});
     }
 }
 
@@ -230,6 +236,10 @@ function workerCallback(e){
         window.mouseStats = e.data.data;
     }else if(e.data.type == "ready"){
         fieldsWorkerReady = true;
+    }else if(e.data.type == "diagram"){
+        console.log("aaaaaaaaaaa");
+        window.antennaDiagram = e.data.data;
+        window.pendingStaticsUpdate = true;
     }
     if (typeof e.data.callback !== 'undefined') {
         workerPromisesResolves[e.data.callback]();
@@ -244,7 +254,7 @@ function workerCallback(e){
 
 async function animate(){
 
-    let delta = Date.now() - lastRender;
+    let delta = performance.now() - lastRender;
     lastRender += delta;
     movingAverageRenderTime = movingAverageRenderTime * 0.97 + delta * 0.03;
     let nextSimulationTime = simulationState.simulationTime + delta * formConfigurations.animationSpeed;
@@ -284,9 +294,10 @@ function drawStaticElements(){
     let context = canvas.getContext("2d");
 
     context.clearRect(0, 0, canvas.width, canvas.height);
+    context.strokeStyle = "#eeeeff";
+    context.setLineDash([]);
     context.beginPath();
 
-    context.strokeStyle = "#eeeeff";
     for (var i = 0; i < formConfigurations.antennas.length; i++) {
         const ant = formConfigurations.antennas[i];
         context.moveTo(sXtoP(ant[0]), sYtoP(ant[1]));
@@ -304,6 +315,33 @@ function drawStaticElements(){
         context.fillText(((formConfigurations.angles[i] * 180 / pi)%360).toFixed(1), sXtoP(ant[0]), sYtoP(ant[1]) + 50);
     }
     context.stroke();
+    context.closePath();
+    if (formConfigurations.drawAntennaDiagram && window.antennaDiagram.length > 0){
+        context.strokeStyle = "#ff44dd";
+        context.setLineDash([]);
+        context.beginPath();
+        context.moveTo(sXtoP(formConfigurations.antenna_center_x) + maxRadius * (antennaDiagram[0]/60 + 1), sYtoP(formConfigurations.antenna_center_y));
+        var maxRadius = Math.min(canvas.width, canvas.height) * 4 / 5 / 2;
+        for (var i = 0; i < antennaDiagram.length; i++){
+            var angle = 2 * pi / antennaDiagram.length * i;
+            var radius = maxRadius * (antennaDiagram[i]/60 + 1);
+            //console.log(angle);
+            //console.log(sXtoP(formConfigurations.antenna_center_x) + radius * Math.cos(angle))
+            //console.log(sXtoP(formConfigurations.antenna_center_x) + radius * Math.sin(angle))
+            context.lineTo(sXtoP(formConfigurations.antenna_center_x) + radius * Math.cos(angle), sYtoP(formConfigurations.antenna_center_y) + radius * Math.sin(angle));
+        }
+        context.stroke();
+        context.closePath();
+        context.strokeStyle = "#808080";
+        context.setLineDash([5, 5]);
+        context.beginPath();
+        context.arc(sXtoP(formConfigurations.antenna_center_x), sYtoP(formConfigurations.antenna_center_y), maxRadius, 0, Math.PI * 2);
+        context.moveTo(sXtoP(formConfigurations.antenna_center_x) + maxRadius * (-13/60 + 1), sYtoP(formConfigurations.antenna_center_y));
+        context.arc(sXtoP(formConfigurations.antenna_center_x), sYtoP(formConfigurations.antenna_center_y), maxRadius * (-13/60 + 1), 0, Math.PI * 2);
+        context.stroke();
+        context.closePath();
+    }
+
 
 }
 

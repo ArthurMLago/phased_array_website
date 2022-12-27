@@ -1,9 +1,11 @@
 var globals = {
     wsInstance: 0,
     outImage: 0,
+    outDiagram: 0,
     outOffset: 0,
     antennasOffset: 0,
     feedsOffset: 0,
+    diagramOffset: 0,
     bigMem: 0,
     alreadySetup: false,
     savedUpdate: 0
@@ -49,8 +51,20 @@ function sendUpdate(data){
     globals.outOffset = globals.wsInstance.exports.exportedMalloc(outSize);
     console.log("globals.outOffset: " + globals.feedsOffset);
     globals.outImage = new Uint8Array(globals.bigMem.buffer, globals.outOffset, data.width * data.height * 4);
-    globals.wsInstance.exports.updateParams(data.nthreads, data.ants.length, globals.antennasOffset, globals.feedsOffset, data.startX, data.startY, data.drawScale, data.resolution, data.width, data.height, data.carrierFreq, data.waveSpeed);
+
+    // Antenna Diagram:
+    let diagramSize = Float32Array.BYTES_PER_ELEMENT * 720;
+    if (globals.diagramOffset > 0){
+        globals.wsInstance.exports.exportedFree(globals.diagramOffset);
+    }
+    globals.diagramOffset = globals.wsInstance.exports.exportedMalloc(diagramSize);
+    console.log("globals.diagramOffset: " + globals.diagramOffset);
+    globals.outDiagram = new Float32Array(globals.bigMem.buffer, globals.diagramOffset, 720);
+
+    // Call updateParams in C++:
+    globals.wsInstance.exports.updateParams(data.nthreads, data.ants.length, globals.antennasOffset, globals.feedsOffset, data.startX, data.startY, data.antennaCenterX, data.antennaCenterY, data.drawScale, data.resolution, data.width, data.height, data.carrierFreq, data.waveSpeed);
     globals.alreadySetup = true;
+
 }
 
 function checkReady(){
@@ -140,8 +154,13 @@ onmessage = (e) => {
                 postMessage(ret);
             }
             break;
-
-
+        case "getAntennaDiagram":
+            if (checkReady()){
+                let address = globals.wsInstance.exports.getAntennaDiagram();
+                const antennaDiagram = new Float32Array(globals.bigMem.buffer, address, 1800);
+                postMessage({type: "diagram", data: antennaDiagram});
+            }
+            break;
     }
 }
 
