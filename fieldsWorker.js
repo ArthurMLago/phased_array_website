@@ -19,9 +19,9 @@ function sendUpdate(data){
     // Antennas:
     let antennasSize = Float32Array.BYTES_PER_ELEMENT * data.ants.length * 3;
     if (globals.antennasOffset > 0){
-        globals.wsInstance.exports.exportedFree(globals.antennasOffset);
+        globals.wsInstance._exportedFree(globals.antennasOffset);
     }
-    globals.antennasOffset = globals.wsInstance.exports.exportedMalloc(antennasSize);
+    globals.antennasOffset = globals.wsInstance._exportedMalloc(antennasSize);
     console.log("globals.antennasOffset: " + globals.antennasOffset);
     const antArray = new Float32Array(globals.bigMem.buffer, globals.antennasOffset, data.ants.length * 3);
     for (i = 0; i < data.ants.length; i++){
@@ -33,9 +33,9 @@ function sendUpdate(data){
     // Feeds:
     let feedsSize = Float32Array.BYTES_PER_ELEMENT * data.ants.length * 2;
     if (globals.feedsOffset > 0){
-        globals.wsInstance.exports.exportedFree(globals.feedsOffset);
+        globals.wsInstance._exportedFree(globals.feedsOffset);
     }
-    globals.feedsOffset = globals.wsInstance.exports.exportedMalloc(feedsSize);
+    globals.feedsOffset = globals.wsInstance._exportedMalloc(feedsSize);
     console.log("globals.feedsOffset: " + globals.feedsOffset);
     const feedsArray = new Float32Array(globals.bigMem.buffer, globals.feedsOffset, data.ants.length * 2);
     for (i = 0; i < data.ants.length; i++){
@@ -46,23 +46,23 @@ function sendUpdate(data){
     // Output Image:
     let outSize = Uint8Array.BYTES_PER_ELEMENT * data.width * data.height * 4;
     if (globals.outOffset > 0){
-        globals.wsInstance.exports.exportedFree(globals.outOffset);
+        globals.wsInstance._exportedFree(globals.outOffset);
     }
-    globals.outOffset = globals.wsInstance.exports.exportedMalloc(outSize);
+    globals.outOffset = globals.wsInstance._exportedMalloc(outSize);
     console.log("globals.outOffset: " + globals.feedsOffset);
     globals.outImage = new Uint8Array(globals.bigMem.buffer, globals.outOffset, data.width * data.height * 4);
 
     // Antenna Diagram:
     let diagramSize = Float32Array.BYTES_PER_ELEMENT * 720;
     if (globals.diagramOffset > 0){
-        globals.wsInstance.exports.exportedFree(globals.diagramOffset);
+        globals.wsInstance._exportedFree(globals.diagramOffset);
     }
-    globals.diagramOffset = globals.wsInstance.exports.exportedMalloc(diagramSize);
+    globals.diagramOffset = globals.wsInstance._exportedMalloc(diagramSize);
     console.log("globals.diagramOffset: " + globals.diagramOffset);
     globals.outDiagram = new Float32Array(globals.bigMem.buffer, globals.diagramOffset, 720);
 
     // Call updateParams in C++:
-    globals.wsInstance.exports.updateParams(data.nthreads, data.ants.length, globals.antennasOffset, globals.feedsOffset, data.startX, data.startY, data.antennaCenterX, data.antennaCenterY, data.drawScale, data.resolution, data.width, data.height, data.carrierFreq, data.waveSpeed);
+    globals.wsInstance._updateParams(data.nthreads, data.ants.length, globals.antennasOffset, globals.feedsOffset, data.startX, data.startY, data.antennaCenterX, data.antennaCenterY, data.drawScale, data.resolution, data.width, data.height, data.carrierFreq, data.waveSpeed);
     globals.alreadySetup = true;
 
 }
@@ -91,22 +91,19 @@ onmessage = (e) => {
                 maximum: 4096,
                 shared: crossOriginIsolated,
             });
-            const enviro = {
-                memory: globals.bigMem,
+            const importModule = {
+                wasmMemory: globals.bigMem,
+                locateFile: function(path, prefix){return prefix + "/compiled_wasm/" + path},
                 consolelogf: v => console.log("C++ consolelogf: " + v),
                 consoleloga: v => console.log("C++ console addr:: " + v),
                 emscripten_notify_memory_growth: v => console.log("emsncripten grow!" + v),
-            }
-            console.log(globals.bigMem.buffer.byteLength);
-
-            WebAssembly.instantiate(e.data.module, {env:enviro}).then(function(instance){
+            };
+            importScripts(e.data.filename);
+            createMyModule(importModule).then(function(instance){
                 globals.wsInstance = instance;
-                console.log(instance);
-                console.log(instance.exports);
-                console.log(globals.bigMem.buffer.byteLength);
+                globals.alreadySetup = false;
+                postMessage({type: "ready", callback: e.data.callback});
             });
-            globals.alreadySetup = false;
-            postMessage({type: "ready", callback: e.data.callback});
             break;
         case "updateParams":
             // ws must be ready:
@@ -118,19 +115,19 @@ onmessage = (e) => {
             break;
         case "getMag":
             if (checkReady()){
-                globals.wsInstance.exports.getMagnitudeImage(globals.outOffset);
+                globals.wsInstance._getMagnitudeImage(globals.outOffset);
                 postMessage({type: "mag", data: globals.outImage, callback: e.data.callback});
             }
             break;
         case "getField":
             if (checkReady()){
-                globals.wsInstance.exports.getFieldImage(e.data.time, globals.outOffset);
+                globals.wsInstance._getFieldImage(e.data.time, globals.outOffset);
                 postMessage({type: "field", data: globals.outImage, callback: e.data.callback});
             }
             break;
         case "getMouse":
             if (checkReady()){
-                let address = globals.wsInstance.exports.getMousePositionInfo(e.data.t, e.data.mx, e.data.my, e.data.cx, e.data.cy);
+                let address = globals.wsInstance._getMousePositionInfo(e.data.t, e.data.mx, e.data.my, e.data.cx, e.data.cy);
                 const mouseStruct = new Float32Array(globals.bigMem.buffer, address, 10);
                 ret = {
                     type: "mouse",
@@ -156,7 +153,7 @@ onmessage = (e) => {
             break;
         case "getAntennaDiagram":
             if (checkReady()){
-                let address = globals.wsInstance.exports.getAntennaDiagram();
+                let address = globals.wsInstance._getAntennaDiagram();
                 const antennaDiagram = new Float32Array(globals.bigMem.buffer, address, 1800);
                 postMessage({type: "diagram", data: antennaDiagram});
             }

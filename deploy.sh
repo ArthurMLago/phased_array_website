@@ -1,8 +1,8 @@
 mkdir compiled_wasm
 OUT_FILENAME_PREFIX="compiled_wasm/fields"
-OUT_FILENAME_SUFFIX=".wasm"
+OUT_FILENAME_SUFFIX=".js"
 
-DEFAULT_CFLAGS=""
+DEFAULT_CFLAGS="-sMODULARIZE -s "'EXPORT_NAME="createMyModule"'
 for simd in 0 1; do
     for bm in 0 1; do
         for sm in 0 1; do
@@ -41,11 +41,11 @@ for simd in 0 1; do
                 fi
                 OUT_FILENAME="${OUT_FILENAME}${OUT_FILENAME_SUFFIX}"
 
-                emcc  wasm.cpp --no-entry   -o $OUT_FILENAME  -sERROR_ON_UNDEFINED_SYMBOLS=0 -s IMPORTED_MEMORY -s ALLOW_MEMORY_GROWTH=1 -s WASM=1 ${CFLAGS} -O3
+                emcc  wasm.cpp --no-entry   -o $OUT_FILENAME  -sERROR_ON_UNDEFINED_SYMBOLS=0 -s IMPORTED_MEMORY  -s ALLOW_MEMORY_GROWTH=1 -s WASM=1 ${CFLAGS} -O3
             done
         done
     done
 done
 
-
+# -sMODULARIZE -s 'EXPORT_NAME="createMyModule"'
 

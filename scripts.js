@@ -462,7 +462,7 @@ function restartWorker(){
     window.fieldsWorker = 0;
     window.fieldsWorker = new Worker("fieldsWorker.js");
     window.fieldsWorker.onmessage = workerCallback;
-    window.fieldsWorker.postMessage({command:"init", module:window.fieldsModule});
+    window.fieldsWorker.postMessage({command:"init", filename:window.wasm_filename});
     //window.fieldsWorker.postMessage(["updateParams", window.fieldsModule]);
 
 }
@@ -550,13 +550,9 @@ $(function(){
         if (ret[2] && crossOriginIsolated && false){
             wasm_filename += "_th";
         }
-        wasm_filename += ".wasm";
-        //wasm_filename = "fields.wasm"
-
-        WebAssembly.compileStreaming(fetch(wasm_filename)).then(function(module){
-            window.fieldsModule = module;
-            restartWorker()
-        });
+        wasm_filename += ".js";
+        window.wasm_filename = wasm_filename;
+        restartWorker();
 
     });
 
