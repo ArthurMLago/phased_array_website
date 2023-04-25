@@ -1,10 +1,16 @@
 #include <math.h>
 #include <stdlib.h>
 #include <stdint.h>
-#ifdef PARALLEL_ENABLED
+#if PARALLEL_ENABLED
     #include <thread>
     #include <barrier>
 #endif
+
+
+#include <fcntl.h>
+#include <unistd.h>
+
+
 
 #ifdef __cplusplus
 #define EXTERN extern "C"
@@ -21,8 +27,16 @@
     #define N_CHANNELS 4
 #endif
 
+
 #ifndef PARALLEL_ENABLED
     #define PARALLEL_ENABLED 0
+#else
+#endif
+
+#if PARALLEL_ENABLED
+    #define TEST_FILE_PREFIX "p"
+#else
+    #define TEST_FILE_PREFIX "s"
 #endif
 
 #define FAR_FIELD 1e3
@@ -30,6 +44,11 @@
 
 EXTERN void consolelogf(float v);
 EXTERN void consoleloga(unsigned long v);
+
+
+float debug_x[500 * 500];
+float debug_y[500 * 500];
+
 
 /** 
  * struct representing an antenna position
@@ -164,6 +183,8 @@ void calculate_magnitudes(float startX, float startY, unsigned resolution, unsig
         for (unsigned m = 0; m < w_c; m++){
             // X position in the simulated world:
             float sx = (m*resolution + resolution/2.0)/saved_params.drawScale + startX;
+            debug_x[outMag - last_mag + n * w_c + m] = sx;
+            debug_y[outMag - last_mag + n * w_c + m] = sy;
             // Sum antennas contributions at this position:
             struct cf64 sumAntennas = sumAntennasAt<float, struct cf64>(sx, sy);
             // Get magnitude:
@@ -275,6 +296,10 @@ EXTERN CONDITIONAL_EMSCRIPTEN_KEEPALIVE void getMagnitudeImage(uint8_t*out){
             for (unsigned m = 0; m < w_c; m++){
                 // Convert to dB and then scales from 0(when -60dB or lower) to 1(when 0dB):
                 field[n*w_c + m] = log10(last_mag[n*w_c + m] + 0.001)*20/60 + 1;
+                // Clip:
+                if (field[n*w_c + m] < 0){
+                    field[n*w_c + m] = 0;
+                }
             }
         }
         createImage(field, saved_params.height, out);
@@ -288,7 +313,7 @@ EXTERN CONDITIONAL_EMSCRIPTEN_KEEPALIVE void getMagnitudeImage(uint8_t*out){
                 }
                 if (magPending){
                     calculate_magnitudes(saved_params.startX,
-                                        saved_params.startY + i* rows_per_thread * saved_params.resolution / saved_params.drawScale,
+                                        saved_params.startY - i* rows_per_thread * saved_params.resolution / saved_params.drawScale,
                                         saved_params.resolution,
                                         saved_params.width,
                                         std::min(rows_per_thread * saved_params.resolution, saved_params.height - i * rows_per_thread * saved_params.resolution),
@@ -351,7 +376,7 @@ EXTERN CONDITIONAL_EMSCRIPTEN_KEEPALIVE void getFieldImage(double t, uint8_t*out
                 // will operate on only a range of rows:
                 if (magPending){
                     calculate_magnitudes(saved_params.startX,
-                                        saved_params.startY + i* rows_per_thread * saved_params.resolution / saved_params.drawScale,
+                                        saved_params.startY - i* rows_per_thread * saved_params.resolution / saved_params.drawScale,
                                         saved_params.resolution,
                                         saved_params.width,
                                         std::min(rows_per_thread * saved_params.resolution, saved_params.height - i * rows_per_thread * saved_params.resolution),
@@ -444,22 +469,25 @@ int main(int argc, char **argv){
 
     char op[256] = "dummy";
     int ret = 9999;
+    int n_commands_read = 0;
     while(strcmp(op, "end") && ret > 0){
         ret = scanf("%s", op);
-        if (!strcmp(op, "update")){
+        if (ret <= 0){
+            break;
+        }else if (!strcmp(op, "update")){
             // Store everything in the same struct, but still use updateParams, for test coverage, etc:
-            struct global_param_struct temp;
+            struct global_param_struct temp; // TODO MAKE IT STATIC!!!!
 
             scanf("%u", &temp.nthreads);
             scanf("%u", &temp.nAnt);
-            scanf("%lf", &temp.startX);
-            scanf("%lf", &temp.startY);
-            scanf("%lf", &temp.drawScale);
+            scanf("%f", &temp.startX);
+            scanf("%f", &temp.startY);
+            scanf("%f", &temp.drawScale);
             scanf("%u", &temp.resolution);
             scanf("%u", &temp.width);
             scanf("%u", &temp.height);
-            scanf("%lf", &temp.carrierFreq);
-            scanf("%lf", &temp.waveSpeed);
+            scanf("%f", &temp.carrierFreq);
+            scanf("%f", &temp.waveSpeed);
 
             if (out){
                 free(temp.antPos);
@@ -471,17 +499,17 @@ int main(int argc, char **argv){
             out = (uint8_t*)malloc(temp.width * temp.height * N_CHANNELS);
 
             for (int i = 0; i < temp.nAnt; i++){
-                scanf("%lf", &(temp.antPos[i].x));
-                scanf("%lf", &(temp.antPos[i].y));
-                scanf("%lf", &(temp.antPos[i].z));
+                scanf("%f", &(temp.antPos[i].x));
+                scanf("%f", &(temp.antPos[i].y));
+                scanf("%f", &(temp.antPos[i].z));
 
             }
             for (int i = 0; i < temp.nAnt; i++){
-                scanf("%lf", &(temp.feeds[i].re));
-                scanf("%lf", &(temp.feeds[i].im));
+                scanf("%f", &(temp.feeds[i].re));
+                scanf("%f", &(temp.feeds[i].im));
             }
 
-            updateParams(temp.nthreads, temp.nAnt,temp.antPos, temp.feeds, temp.startX, temp.startY, temp.drawScale,
+            updateParams(temp.nthreads, temp.nAnt,temp.antPos, temp.feeds, temp.startX, temp.startY,0,0, temp.drawScale,
                     temp.resolution, temp.width, temp.height, temp.carrierFreq, temp.waveSpeed);
 
         }else if (!strcmp(op, "mag")){
@@ -493,7 +521,7 @@ int main(int argc, char **argv){
             }
             printf("P3\n%d %d\n255\n", saved_params.width, saved_params.height);
             for (int i = 0; i < saved_params.width * saved_params.height; i++){
-                printf("%d %d %d ", out[i*N_CHANNELS], out[i*N_CHANNELS + 1], out[i*N_CHANNELS + 2]);
+                printf("%d %d %d\n", out[i*N_CHANNELS], out[i*N_CHANNELS + 1], out[i*N_CHANNELS + 2]);
             }
         }else if(!strcmp(op, "field")){
             double time;
@@ -506,11 +534,35 @@ int main(int argc, char **argv){
             }
             printf("P3\n%d %d\n255\n", saved_params.width, saved_params.height);
             for (int i = 0; i < saved_params.width * saved_params.height; i++){
-                printf("%d %d %d ", out[i*N_CHANNELS], out[i*N_CHANNELS + 1], out[i*N_CHANNELS + 2]);
+                printf("%d %d %d\n", out[i*N_CHANNELS], out[i*N_CHANNELS + 1], out[i*N_CHANNELS + 2]);
             }
 
         }
+        n_commands_read++;
     }
+    unsigned w_c = (saved_params.width + saved_params.resolution - 1) / saved_params.resolution;
+    unsigned h_c = (saved_params.height + saved_params.resolution - 1) / saved_params.resolution;
+
+    int fd = open("/tmp/debugx" TEST_FILE_PREFIX, O_WRONLY | O_CREAT, 0777);
+    write(fd, &w_c, 4);
+    write(fd, &h_c, 4);
+    write(fd, debug_x, sizeof(float) * w_c * h_c);
+    close(fd);
+    fd = open("/tmp/debugy" TEST_FILE_PREFIX, O_WRONLY | O_CREAT, 0777);
+    write(fd, &w_c, 4);
+    write(fd, &h_c, 4);
+    write(fd, debug_y, sizeof(float) * w_c * h_c);
+    close(fd);
+    fd = open("/tmp/mag" TEST_FILE_PREFIX, O_WRONLY | O_CREAT, 0777);
+    write(fd, &w_c, 4);
+    write(fd, &h_c, 4);
+    write(fd, last_mag, sizeof(float) * w_c * h_c);
+    close(fd);
+    fd = open("/tmp/ph" TEST_FILE_PREFIX, O_WRONLY | O_CREAT, 0777);
+    write(fd, &w_c, 4);
+    write(fd, &h_c, 4);
+    write(fd, last_ph, sizeof(float) * w_c * h_c);
+    close(fd);
 
 }
 #endif

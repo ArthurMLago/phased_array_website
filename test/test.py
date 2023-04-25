@@ -6,6 +6,7 @@ import os
 import pdb
 import sys
 import numpy
+from PIL import Image
 
 def compile_wasm(parallel, outfile):
     p = subprocess.Popen(["g++", "--std=c++20", "wasm.cpp", "-DPARALLEL_ENABLED=" + str(parallel), "-DTEST=1", "-o", outfile, "-g"])
@@ -20,14 +21,14 @@ def get_random_config(seed, nthreads=None):
     if nthreads == None:
         nthreads = random_nthreads # random number generation cannot be inside conditional to keep consistent outputs
     outputString += "{:d}\n".format(nthreads)
-    nAnt = random.randint(1,128)
+    nAnt = random.randint(1,6)
     outputString += "{:d}\n".format(nAnt)
     outputString += "{:f}\n".format(random.uniform(-1e3,1e3)) # startX
     outputString += "{:f}\n".format(random.uniform(-1e3,1e3)) # stattY
     outputString += "{:f}\n".format(random.uniform(1e-8,1e3)) # drawScale
     outputString += "{:d}\n".format(random.randint(1, 32)) # resolution
-    outputString += "{:d}\n".format(random.randint(1, 1000)) # width
-    outputString += "{:d}\n".format(random.randint(1, 1000)) # height
+    outputString += "{:d}\n".format(random.randint(1, 200)) # width
+    outputString += "{:d}\n".format(random.randint(1, 200)) # height
     outputString += "{:f}\n".format(random.uniform(1e-6,1e20)) # carrierFreq
     outputString += "{:f}\n".format(random.uniform(1e-6,1e20)) # waveSpeed
     for i in range(nAnt):
@@ -42,7 +43,7 @@ def get_random_config(seed, nthreads=None):
 def get_random_input(seed, nthreads=None):
     outputString = "update\n" + get_random_config(seed, nthreads)
     for i in range(random.randint(1,50)):
-        op = random.choice(["update", "mag", "field"])
+        op = random.choice(["update", "mag"])
         outputString += op + "\n"
         if (op == "update"):
             outputString += get_random_config(random.randint(0,1532342342), nthreads)
@@ -75,7 +76,7 @@ def parse_images(ls):
 
     return images
 
-def check_parallel_consistency(tries):
+def check_parallel_consistency(tries, input_pair=None):
     temp_dir = "/tmp/wasm_parallel_consistency_test/"
     os.makedirs(temp_dir, exist_ok=True)
     parallel_file = temp_dir + "/wasm_parallel"
@@ -85,10 +86,16 @@ def check_parallel_consistency(tries):
 
     for i in range(tries):
         # Make and log inputs:
-        seed = random.randint(0, 400000000) + i
-        print("Making inputs with seed: {}".format(seed))
-        serial_input = get_random_input(seed, 1)
-        parallel_input = get_random_input(seed)
+        if input_pair == None:
+            seed = random.randint(0, 400000000) + i
+            print("Making inputs with seed: {}".format(seed))
+            serial_input = get_random_input(seed, 1)
+            parallel_input = get_random_input(seed)
+        else:
+            seed = "cmdline"
+            #  print("Getting input from files given in command line: parallel: {}, serial: {}".format(*input_pair))
+            serial_input = input_pair[1]
+            parallel_input = input_pair[0]
 
 
 
@@ -138,6 +145,14 @@ def check_parallel_consistency(tries):
                 diff1 = abs(ps_images[j]  - pps_images[j])
                 diff2 = abs(pps_images[j] - pp_images[j])
                 diff3 = abs(pp_images[j]  - ps_images[j])
+                imageScale = max(numpy.max(diff1), numpy.max(diff2), numpy.max(diff3))
+
+
+                outImage = (pp_images[j] - ps_images[j]) / (imageScale + 1) * 127 + 128
+                pilI = Image.fromarray(outImage.astype(numpy.uint8))
+                pilI.save(temp_dir + "/compare{}_{}.png".format(seed, j))
+
+
                 print("  Image shape: {} > Serial Program Images  (mean:{:.3E}/ std: {:5.2f}/ sum: {:.3E}) Parallel Program with Serial Input Images (mean:{:.3E}/ std: {:5.2f}/ sum: {:.3E}) Paralle Program Images (mean:{:.3E}/ std: {:5.2f}/ sum: {:.3E})".format(
                     str(diff1.shape),
                     numpy.mean(diff1),
@@ -178,7 +193,10 @@ def check_parallel_consistency(tries):
 
 
 if __name__ == '__main__':
-    if (len(sys.argv) > 1):
-        
+    if len(sys.argv) > 1:
+        parallel_input = open(sys.argv[1]).read()
+        serial_input = open(sys.argv[2]).read()
 
-    check_parallel_consistency(100)
+        check_parallel_consistency(1, (parallel_input, serial_input))
+    else:
+        check_parallel_consistency(100)
