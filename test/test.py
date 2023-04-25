@@ -21,14 +21,14 @@ def get_random_config(seed, nthreads=None):
     if nthreads == None:
         nthreads = random_nthreads # random number generation cannot be inside conditional to keep consistent outputs
     outputString += "{:d}\n".format(nthreads)
-    nAnt = random.randint(1,6)
+    nAnt = random.randint(1,64)
     outputString += "{:d}\n".format(nAnt)
     outputString += "{:f}\n".format(random.uniform(-1e3,1e3)) # startX
     outputString += "{:f}\n".format(random.uniform(-1e3,1e3)) # stattY
     outputString += "{:f}\n".format(random.uniform(1e-8,1e3)) # drawScale
     outputString += "{:d}\n".format(random.randint(1, 32)) # resolution
-    outputString += "{:d}\n".format(random.randint(1, 200)) # width
-    outputString += "{:d}\n".format(random.randint(1, 200)) # height
+    outputString += "{:d}\n".format(random.randint(1, 3000)) # width
+    outputString += "{:d}\n".format(random.randint(1, 3000)) # height
     outputString += "{:f}\n".format(random.uniform(1e-6,1e20)) # carrierFreq
     outputString += "{:f}\n".format(random.uniform(1e-6,1e20)) # waveSpeed
     for i in range(nAnt):
@@ -140,57 +140,52 @@ def check_parallel_consistency(tries, input_pair=None):
 
 
         else:
-            ps_images, pps_images, pp_images = (*[parse_images(x) for x in [ps_ls, pps_ls, pp_ls]],)
-            for j in range(len(ps_images)):
-                diff1 = abs(ps_images[j]  - pps_images[j])
-                diff2 = abs(pps_images[j] - pp_images[j])
-                diff3 = abs(pp_images[j]  - ps_images[j])
-                imageScale = max(numpy.max(diff1), numpy.max(diff2), numpy.max(diff3))
+            # Output should be equal betwen the 3 ways to calculate:
+            if (ps_out != pps_out or ps_out != pp_out):
+                if sys.stdout.isatty():
+                    print("  \033[31mDifferent outputs!\033[0m")
+                else:
+                    print("  Different outputs!")
+                # Save raw output:
+                with open(temp_dir + "cpc_" + str(seed) + "_serial.stdout", "w") as fp:
+                    print(ps_out, file=fp)
+                with open(temp_dir + "cpc_" + str(seed) + "_parallel_serial.stdout", "w") as fp:
+                    print(pps_out, file=fp)
+                with open(temp_dir + "cpc_" + str(seed) + "_parallel.stdout", "w") as fp:
+                    print(pp_out, file=fp)
+                # Process images and et insights:
 
+                ps_images, pps_images, pp_images = (*[parse_images(x) for x in [ps_ls, pps_ls, pp_ls]],)
+                for j in range(len(ps_images)):
+                    diff1 = abs(ps_images[j]  - pps_images[j])
+                    diff2 = abs(pps_images[j] - pp_images[j])
+                    diff3 = abs(pp_images[j]  - ps_images[j])
+                    imageScale = max(numpy.max(diff1), numpy.max(diff2), numpy.max(diff3))
 
-                outImage = (pp_images[j] - ps_images[j]) / (imageScale + 1) * 127 + 128
-                pilI = Image.fromarray(outImage.astype(numpy.uint8))
-                pilI.save(temp_dir + "/compare{}_{}.png".format(seed, j))
+                    outImage = (pp_images[j] - ps_images[j]) / (imageScale + 1) * 127 + 128
+                    pilI = Image.fromarray(outImage.astype(numpy.uint8))
+                    pilI.save(temp_dir + "/compare{}_{}.png".format(seed, j))
 
-
-                print("  Image shape: {} > Serial Program Images  (mean:{:.3E}/ std: {:5.2f}/ sum: {:.3E}) Parallel Program with Serial Input Images (mean:{:.3E}/ std: {:5.2f}/ sum: {:.3E}) Paralle Program Images (mean:{:.3E}/ std: {:5.2f}/ sum: {:.3E})".format(
-                    str(diff1.shape),
-                    numpy.mean(diff1),
-                    numpy.std(diff1),
-                    numpy.sum(diff1),
-                    numpy.mean(diff2),
-                    numpy.std(diff2),
-                    numpy.sum(diff2),
-                    numpy.mean(diff3),
-                    numpy.std(diff3),
-                    numpy.sum(diff3),
-                ))
-
-
-
-
-        # Output should be equal betwen the 3 ways to calculate:
-        if (ps_out != pps_out or ps_out != pp_out):
-            if sys.stdout.isatty():
-                print("  \033[31mDifferent outputs!\033[0m")
+                    print("  Image shape: {} > Serial Program Images  (mean:{:.3E}/ std: {:5.2f}/ sum: {:.3E}) Parallel Program with Serial Input Images (mean:{:.3E}/ std: {:5.2f}/ sum: {:.3E}) Paralle Program Images (mean:{:.3E}/ std: {:5.2f}/ sum: {:.3E})".format(
+                        str(diff1.shape),
+                        numpy.mean(diff1),
+                        numpy.std(diff1),
+                        numpy.sum(diff1),
+                        numpy.mean(diff2),
+                        numpy.std(diff2),
+                        numpy.sum(diff2),
+                        numpy.mean(diff3),
+                        numpy.std(diff3),
+                        numpy.sum(diff3),
+                    ))
             else:
-                print("  Different outputs!")
-            with open(temp_dir + "cpc_" + str(seed) + "_serial.stdout", "w") as fp:
-                print(ps_out, file=fp)
-            with open(temp_dir + "cpc_" + str(seed) + "_parallel_serial.stdout", "w") as fp:
-                print(pps_out, file=fp)
-            with open(temp_dir + "cpc_" + str(seed) + "_parallel.stdout", "w") as fp:
-                print(pp_out, file=fp)
-        else:
-            serial_timings = [float(x) for x in open(timing_file_prefix + "_serial.txt", "r").readlines()]
-            sparallel_timings = [float(x) for x in open(timing_file_prefix + "_parallel_serial.txt", "r").readlines()]
-            parallel_timings = [float(x) for x in open(timing_file_prefix + "_parallel.txt", "r").readlines()]
+                print("    Outputs match!")
+                serial_timings = [float(x) for x in open(timing_file_prefix + "_serial.txt", "r").readlines()]
+                sparallel_timings = [(int(x.split(",")[0]), float(x.split(",")[1])) for x in open(timing_file_prefix + "_parallel_serial.txt", "r").readlines()]
+                parallel_timings = [(int(x.split(",")[0]), float(x.split(",")[1])) for x in open(timing_file_prefix + "_parallel.txt", "r").readlines()]
 
-            for i in range(0, len(parallel_timings)):
-                print("    Parallelization Overhead: {}, Parallelization Speedup: {}".format(sparallel_timings[i] - serial_timings[i], serial_timings[i]/parallel_timings[i]))
-
-
-
+                for i in range(0, len(parallel_timings)):
+                    print("    Threads: {:4d}, Parallelization Overhead: {:8.5f}s, Parallelization Speedup: {:8.5f}, Parallelization Speedup per thread: {:8.5f}".format(parallel_timings[i][0],sparallel_timings[i][1] - serial_timings[i], serial_timings[i]/parallel_timings[i][1], serial_timings[i]/parallel_timings[i][1]/parallel_timings[i][0]))
 
 if __name__ == '__main__':
     if len(sys.argv) > 1:

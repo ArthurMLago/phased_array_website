@@ -45,11 +45,6 @@
 EXTERN void consolelogf(float v);
 EXTERN void consoleloga(unsigned long v);
 
-
-float debug_x[500 * 500];
-float debug_y[500 * 500];
-
-
 /** 
  * struct representing an antenna position
  */
@@ -183,8 +178,6 @@ void calculate_magnitudes(double startX, double startY, unsigned resolution, uns
         for (unsigned m = 0; m < w_c; m++){
             // X position in the simulated world:
             double sx = (m*resolution + resolution/2.0)/saved_params.drawScale + startX;
-            debug_x[outMag - last_mag + n * w_c + m] = sx;
-            debug_y[outMag - last_mag + n * w_c + m] = sy;
             // Sum antennas contributions at this position:
             struct cf64 sumAntennas = sumAntennasAt<double, struct cf64>(sx, sy);
             // Get magnitude:
@@ -517,6 +510,9 @@ int main(int argc, char **argv){
             getMagnitudeImage(out);
             const sec duration = clockk::now() - before;
             if (timingFile){
+                #if PARALLEL_ENABLED
+                    fprintf(timingFile, "%d, ", saved_params.nthreads);
+                #endif
                 fprintf(timingFile, "%lf\n", duration);
             }
             printf("P3\n%d %d\n255\n", saved_params.width, saved_params.height);
@@ -530,6 +526,9 @@ int main(int argc, char **argv){
             getFieldImage(time, out);
             const sec duration = clockk::now() - before;
             if (timingFile){
+                #if PARALLEL_ENABLED
+                    fprintf(timingFile, "%d, ", saved_params.nthreads);
+                #endif
                 fprintf(timingFile, "%lf\n", duration);
             }
             printf("P3\n%d %d\n255\n", saved_params.width, saved_params.height);
@@ -542,27 +541,5 @@ int main(int argc, char **argv){
     }
     unsigned w_c = (saved_params.width + saved_params.resolution - 1) / saved_params.resolution;
     unsigned h_c = (saved_params.height + saved_params.resolution - 1) / saved_params.resolution;
-
-    int fd = open("/tmp/debugx" TEST_FILE_PREFIX, O_WRONLY | O_CREAT, 0777);
-    write(fd, &w_c, 4);
-    write(fd, &h_c, 4);
-    write(fd, debug_x, sizeof(float) * w_c * h_c);
-    close(fd);
-    fd = open("/tmp/debugy" TEST_FILE_PREFIX, O_WRONLY | O_CREAT, 0777);
-    write(fd, &w_c, 4);
-    write(fd, &h_c, 4);
-    write(fd, debug_y, sizeof(float) * w_c * h_c);
-    close(fd);
-    fd = open("/tmp/mag" TEST_FILE_PREFIX, O_WRONLY | O_CREAT, 0777);
-    write(fd, &w_c, 4);
-    write(fd, &h_c, 4);
-    write(fd, last_mag, sizeof(float) * w_c * h_c);
-    close(fd);
-    fd = open("/tmp/ph" TEST_FILE_PREFIX, O_WRONLY | O_CREAT, 0777);
-    write(fd, &w_c, 4);
-    write(fd, &h_c, 4);
-    write(fd, last_ph, sizeof(float) * w_c * h_c);
-    close(fd);
-
 }
 #endif
