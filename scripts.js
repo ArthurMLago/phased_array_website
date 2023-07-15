@@ -192,6 +192,7 @@ function updateForm(){
     d.waveSpeed = formConfigurations.waveSpeed;
     d.resolution = formConfigurations.resolution;
     d.nthreads = formConfigurations.nthreads;
+    console.log(d);
     if (fieldsWorkerReady){
         console.log("Sending updateparams to worker")
         sendToWorker(d);
@@ -536,7 +537,8 @@ $(function(){
         console.log("WASM Bulk Memory Support:" + ret[1]);
         console.log("WASM Threads Support:" + ret[2]);
 
-        var wasm_filename = "compiled_wasm/fields";
+        //var wasm_filename = "compiled_wasm/fields";
+        var wasm_filename = "fields";
         if (crossOriginIsolated){
             wasm_filename += "_sm";
         }
@@ -547,7 +549,7 @@ $(function(){
             wasm_filename += "_bm";
         }
         // Threads will only work if we also have shared memories available:
-        if (ret[2] && crossOriginIsolated && false){
+        if (ret[2] && crossOriginIsolated){
             wasm_filename += "_th";
         }
         wasm_filename += ".js";

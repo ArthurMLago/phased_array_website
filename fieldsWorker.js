@@ -93,10 +93,11 @@ onmessage = (e) => {
             });
             const importModule = {
                 wasmMemory: globals.bigMem,
-                locateFile: function(path, prefix){return prefix + "/compiled_wasm/" + path},
+                //locateFile: function(path, prefix){return ((!((prefix+path).includes("compiled_wasm"))) ? prefix + "/compiled_wasm/" + path : prefix + path)},
                 consolelogf: v => console.log("C++ consolelogf: " + v),
                 consoleloga: v => console.log("C++ console addr:: " + v),
                 emscripten_notify_memory_growth: v => console.log("emsncripten grow!" + v),
+                mainScriptUrlOrBlob: e.data.filename,
             };
             importScripts(e.data.filename);
             createMyModule(importModule).then(function(instance){

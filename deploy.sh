@@ -1,5 +1,5 @@
-mkdir compiled_wasm
-OUT_FILENAME_PREFIX="compiled_wasm/fields"
+mkdir -p deploy
+OUT_FILENAME_PREFIX="deploy/fields"
 OUT_FILENAME_SUFFIX=".js"
 
 DEFAULT_CFLAGS="-sMODULARIZE -s "'EXPORT_NAME="createMyModule"'
@@ -47,5 +47,7 @@ for simd in 0 1; do
     done
 done
 
+cp gear.svg phased_array.html scripts.js fieldsWorker.js style.css deploy
+cp jquery-3.6.2.min.js wasm-feature-detect.js deploy
 # -sMODULARIZE -s 'EXPORT_NAME="createMyModule"'
 
