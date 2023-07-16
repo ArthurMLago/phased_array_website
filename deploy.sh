@@ -41,7 +41,7 @@ for simd in 0 1; do
                 fi
                 OUT_FILENAME="${OUT_FILENAME}${OUT_FILENAME_SUFFIX}"
 
-                emcc  wasm.cpp --no-entry   -o $OUT_FILENAME  -sERROR_ON_UNDEFINED_SYMBOLS=0 -s IMPORTED_MEMORY  -s ALLOW_MEMORY_GROWTH=1 -s WASM=1 ${CFLAGS} -O3
+                emcc  wasm.cpp --no-entry -o $OUT_FILENAME -s ASSERTIONS=1 -s IMPORTED_MEMORY=1 -s ALLOW_MEMORY_GROWTH=1 -s WASM=1 ${CFLAGS} -O3
             done
         done
     done

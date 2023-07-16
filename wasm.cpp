@@ -49,9 +49,9 @@ EXTERN void consoleloga(unsigned long v);
  * struct representing an antenna position
  */
 struct pos{
-    double x;
-    double y;
-    double z;
+    float x;
+    float y;
+    float z;
 };
 
 /**
@@ -69,16 +69,16 @@ struct global_param_struct{
     unsigned nAnt;
     struct pos *antPos;
     struct cf64 *feeds;
-    double antennaCenterX;
-    double antennaCenterY;
-    double startX;
-    double startY;
-    double drawScale;
+    float antennaCenterX;
+    float antennaCenterY;
+    float startX;
+    float startY;
+    float drawScale;
     unsigned resolution;
     unsigned width;
     unsigned height;
-    double carrierFreq;
-    double waveSpeed;
+    float carrierFreq;
+    float waveSpeed;
     uint8_t changed;
     unsigned nthreads;
 } saved_params;
@@ -94,7 +94,7 @@ float magnitudeSumFarRange = -1;
 template <typename calcT, typename retT>
 inline retT sumAntennasAt(calcT x, calcT y){
     // sinusoid frequency(this is a loop invariant, we hope it is optimed out of the loops since this is an inline function):
-    double sinFreq = 2 * M_PI * saved_params.carrierFreq / saved_params.waveSpeed;
+    float sinFreq = 2 * M_PI * saved_params.carrierFreq / saved_params.waveSpeed;
     // We go through all antennas and sum up their contribution in this specific position:
     retT sumAntennas;
     sumAntennas.re = 0;
@@ -116,8 +116,8 @@ void calculateAntennaDiagram(){
     magnitudeSumFarRange = 0;
     #if !PARALLEL_ENABLED
         for (int i = 0; i < ANTENNA_DIAGRAM_DIVS; i++){
-            double angle = 2 * M_PI / ANTENNA_DIAGRAM_DIVS * i;
-            struct cf64 sum = sumAntennasAt<double, struct cf64>(FAR_FIELD * cos(angle) + saved_params.antennaCenterX, FAR_FIELD * sin(angle) + saved_params.antennaCenterY);
+            float angle = 2 * M_PI / ANTENNA_DIAGRAM_DIVS * i;
+            struct cf64 sum = sumAntennasAt<float, struct cf64>(FAR_FIELD * cos(angle) + saved_params.antennaCenterX, FAR_FIELD * sin(angle) + saved_params.antennaCenterY);
             antennaDiagram[i] = sqrtf(sum.re * sum.re + sum.im * sum.im);
             magnitudeSumFarRange += antennaDiagram[i];
         }
@@ -134,14 +134,14 @@ void calculateAntennaDiagram(){
         unsigned elements_per_thread = (ANTENNA_DIAGRAM_DIVS - 1 + saved_params.nthreads)/saved_params.nthreads;
         // Spawn a bunch of threads, use C++ lambda functions
         std::thread *tlist[saved_params.nthreads];
-        double magnitudeSumFarRangePerThread[saved_params.nthreads];
+        float magnitudeSumFarRangePerThread[saved_params.nthreads];
         std::barrier sync_point(saved_params.nthreads);
         for (int i = 0; i < saved_params.nthreads; i++){
             tlist[i] = new std::thread([&magnitudeSumFarRangePerThread, i, elements_per_thread, &sync_point] () {
                 magnitudeSumFarRangePerThread[i] = 0;
                 for (int j = i * elements_per_thread; j < std::min((unsigned)(i + 1) * elements_per_thread, (unsigned)ANTENNA_DIAGRAM_DIVS); j++){
-                    double angle = 2 * M_PI / ANTENNA_DIAGRAM_DIVS * j;
-                    struct cf64 sum = sumAntennasAt<double, struct cf64>(FAR_FIELD * cos(angle), FAR_FIELD * sin(angle));
+                    float angle = 2 * M_PI / ANTENNA_DIAGRAM_DIVS * j;
+                    struct cf64 sum = sumAntennasAt<float, struct cf64>(FAR_FIELD * cos(angle), FAR_FIELD * sin(angle));
                     antennaDiagram[j] = sqrtf(sum.re * sum.re + sum.im * sum.im);
                     magnitudeSumFarRangePerThread[i] += antennaDiagram[j];
                 }
@@ -168,18 +168,18 @@ void calculateAntennaDiagram(){
     #endif
 }
 
-void calculate_magnitudes(double startX, double startY, unsigned resolution, unsigned width, unsigned height, float*outMag, float*outPh){
+void calculate_magnitudes(float startX, float startY, unsigned resolution, unsigned width, unsigned height, float*outMag, float*outPh){
     // Divide the dimensions by the resolutiona nd truncate up to get how many magnitudes/phases we have to calculate:
     unsigned w_c = (width + resolution - 1) / resolution;
     unsigned h_c = (height + resolution - 1) / resolution;
     for (unsigned n = 0; n < h_c; n++){
         // Y position in the simulated world:
-        double sy = -(n * resolution + resolution/2.0)/saved_params.drawScale + startY;
+        float sy = -(n * resolution + resolution/2.0)/saved_params.drawScale + startY;
         for (unsigned m = 0; m < w_c; m++){
             // X position in the simulated world:
-            double sx = (m*resolution + resolution/2.0)/saved_params.drawScale + startX;
+            float sx = (m*resolution + resolution/2.0)/saved_params.drawScale + startX;
             // Sum antennas contributions at this position:
-            struct cf64 sumAntennas = sumAntennasAt<double, struct cf64>(sx, sy);
+            struct cf64 sumAntennas = sumAntennasAt<float, struct cf64>(sx, sy);
             // Get magnitude:
             float magnitude = sqrtf(sumAntennas.re * sumAntennas.re + sumAntennas.im * sumAntennas.im)/saved_params.nAnt;
             outMag[n*w_c + m] = magnitude;
@@ -215,16 +215,16 @@ EXTERN CONDITIONAL_EMSCRIPTEN_KEEPALIVE void updateParams(unsigned nthreads,
                                                           unsigned nAnt,
                                                           struct pos *antPos,
                                                           struct cf64 *feeds,
-                                                          double startX,
-                                                          double startY,
-                                                          double antennaCenterX,
-                                                          double antennaCenterY,
-                                                          double drawScale,
+                                                          float startX,
+                                                          float startY,
+                                                          float antennaCenterX,
+                                                          float antennaCenterY,
+                                                          float drawScale,
                                                           unsigned resolution,
                                                           unsigned width,
                                                           unsigned height,
-                                                          double carrierFreq,
-                                                          double waveSpeed){
+                                                          float carrierFreq,
+                                                          float waveSpeed){
     saved_params.nthreads = nthreads;
     saved_params.nAnt = nAnt;
     saved_params.antPos = antPos;
@@ -336,12 +336,12 @@ EXTERN CONDITIONAL_EMSCRIPTEN_KEEPALIVE void getMagnitudeImage(uint8_t*out){
     #endif
 }
 
-EXTERN CONDITIONAL_EMSCRIPTEN_KEEPALIVE void getFieldImage(double t, uint8_t*out){
+EXTERN CONDITIONAL_EMSCRIPTEN_KEEPALIVE void getFieldImage(float t, uint8_t*out){
 
     bool magPending = checkChanged();
     unsigned w_c = (saved_params.width + saved_params.resolution - 1) / saved_params.resolution;
     unsigned h_c = (saved_params.height + saved_params.resolution - 1) / saved_params.resolution;
-    double timePhase = -2*M_PI*saved_params.carrierFreq * t;
+    float timePhase = -2*M_PI*saved_params.carrierFreq * t;
     #if !PARALLEL_ENABLED
         if (magPending){
             calculate_magnitudes(saved_params.startX, saved_params.startY, saved_params.resolution, saved_params.width, saved_params.height, last_mag, last_ph);
@@ -400,20 +400,20 @@ EXTERN CONDITIONAL_EMSCRIPTEN_KEEPALIVE float* getAntennaDiagram(){
     return antennaDiagram;
 }
 
-EXTERN CONDITIONAL_EMSCRIPTEN_KEEPALIVE void* getMousePositionInfo(double t, double mx, double my){
+EXTERN CONDITIONAL_EMSCRIPTEN_KEEPALIVE void* getMousePositionInfo(float t, float mx, float my){
     static struct ret_info{
-        double magnitude;
-        double initial_phase;
-        double phase;
-        double magdb;
-        double re;
-        double im;
-        double far_field_mag;
-        double far_field_magdb;
-        double azimuth;
-        double distance;
+        float magnitude;
+        float initial_phase;
+        float phase;
+        float magdb;
+        float re;
+        float im;
+        float far_field_mag;
+        float far_field_magdb;
+        float azimuth;
+        float distance;
     } ret;
-    struct cf64 sumAntennas = sumAntennasAt<double, struct cf64>(mx, my);
+    struct cf64 sumAntennas = sumAntennasAt<float, struct cf64>(mx, my);
     ret.magnitude = sqrt(sumAntennas.re * sumAntennas.re + sumAntennas.im * sumAntennas.im)/saved_params.nAnt;
     ret.initial_phase = atan2(sumAntennas.im, sumAntennas.re);
     ret.magdb = 20 * log10(ret.magnitude + 0.001);
@@ -422,11 +422,11 @@ EXTERN CONDITIONAL_EMSCRIPTEN_KEEPALIVE void* getMousePositionInfo(double t, dou
     ret.im = ret.magnitude * sin(ret.phase);
 
     // Polar stuff:
-    double x = mx - saved_params.antennaCenterX;
-    double y = my - saved_params.antennaCenterY;
+    float x = mx - saved_params.antennaCenterX;
+    float y = my - saved_params.antennaCenterY;
     ret.azimuth = atan2(y,x);
     ret.distance = sqrt(x*x + y*y);
-    sumAntennas = sumAntennasAt<double, struct cf64>(FAR_FIELD * cos(ret.azimuth) +saved_params.antennaCenterX, FAR_FIELD * sin(ret.azimuth) + saved_params.antennaCenterY);
+    sumAntennas = sumAntennasAt<float, struct cf64>(FAR_FIELD * cos(ret.azimuth) +saved_params.antennaCenterX, FAR_FIELD * sin(ret.azimuth) + saved_params.antennaCenterY);
     ret.far_field_mag = sqrt(sumAntennas.re * sumAntennas.re + sumAntennas.im * sumAntennas.im)/saved_params.nAnt;
     ret.far_field_magdb = 20 * log10(ret.far_field_mag + 0.001);
 
@@ -451,7 +451,7 @@ EXTERN CONDITIONAL_EMSCRIPTEN_KEEPALIVE void exportedFree(unsigned long address)
 #include <string.h>
 #include <stdio.h>
 using clockk = std::chrono::system_clock;
-using sec = std::chrono::duration<double>;
+using sec = std::chrono::duration<float>;
 
 int main(int argc, char **argv){
     FILE *timingFile = NULL;
@@ -520,7 +520,7 @@ int main(int argc, char **argv){
                 printf("%d %d %d\n", out[i*N_CHANNELS], out[i*N_CHANNELS + 1], out[i*N_CHANNELS + 2]);
             }
         }else if(!strcmp(op, "field")){
-            double time;
+            float time;
             scanf("%lf", &time);
             const auto before = clockk::now();
             getFieldImage(time, out);

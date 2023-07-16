@@ -546,7 +546,7 @@ $(function(){
             wasm_filename += "_simd";
         }
         if (ret[1]){
-            wasm_filename += "_bm";
+            //wasm_filename += "_bm";
         }
         // Threads will only work if we also have shared memories available:
         if (ret[2] && crossOriginIsolated){
