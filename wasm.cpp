@@ -157,6 +157,7 @@ void calculateAntennaDiagram(){
                 sync_point.arrive_and_wait();
                 for (int j = i * elements_per_thread; j < std::min((unsigned)(i + 1) * elements_per_thread, (unsigned)ANTENNA_DIAGRAM_DIVS); j++){
                     antennaDiagram[j] /= magnitudeSumFarRange;
+                    antennaDiagram[j] = 20 * log10(antennaDiagram[j] + 0.001);
                 }
             });
         }
