@@ -239,7 +239,7 @@ function workerCallback(e){
         fieldsWorkerReady = true;
     }else if(e.data.type == "diagram"){
         console.log("aaaaaaaaaaa");
-        window.antennaDiagram = e.data.data;
+        window.antennaDiagram = e.data.data.slice();
         window.pendingStaticsUpdate = true;
     }
     if (typeof e.data.callback !== 'undefined') {
