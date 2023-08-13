@@ -177,25 +177,25 @@ function updateForm(){
     }
 
     pendingStaticsUpdate = true;
-    var d = {};
-    d.command = "updateParams"
-    d.ants = formConfigurations.antennas;
-    d.feeds = formConfigurations.feeds;
-    d.startX = simulationState.simulatedWorldStartX;
-    d.startY = simulationState.simulatedWorldStartY;
-    d.antennaCenterX = formConfigurations.antenna_center_x;
-    d.antennaCenterY = formConfigurations.antenna_center_y;
-    d.drawScale = simulationState.DrawScale;
-    d.width = canvas.width;
-    d.height = canvas.height;
-    d.carrierFreq = formConfigurations.carrierFreq;
-    d.waveSpeed = formConfigurations.waveSpeed;
-    d.resolution = formConfigurations.resolution;
-    d.nthreads = formConfigurations.nthreads;
-    console.log(d);
     if (fieldsWorkerReady){
         console.log("Sending updateparams to worker")
-        sendToWorker(d);
+        var workerCommand = {};
+        workerCommand.command = "updateParams"
+        workerCommand.ants = formConfigurations.antennas;
+        workerCommand.feeds = formConfigurations.feeds;
+        workerCommand.startX = simulationState.simulatedWorldStartX;
+        workerCommand.startY = simulationState.simulatedWorldStartY;
+        workerCommand.antennaCenterX = formConfigurations.antenna_center_x;
+        workerCommand.antennaCenterY = formConfigurations.antenna_center_y;
+        workerCommand.drawScale = simulationState.DrawScale;
+        workerCommand.width = canvas.width;
+        workerCommand.height = canvas.height;
+        workerCommand.carrierFreq = formConfigurations.carrierFreq;
+        workerCommand.waveSpeed = formConfigurations.waveSpeed;
+        workerCommand.resolution = formConfigurations.resolution;
+        workerCommand.nthreads = formConfigurations.nthreads;
+        console.log(workerCommand);
+        sendToWorker(workerCommand);
         if (!alreadyProcessing){
             if (formConfigurations.drawMagnitude){
                 sendToWorker({command:"getMag"});
@@ -326,9 +326,6 @@ function drawStaticElements(){
         for (var i = 0; i < antennaDiagram.length; i++){
             var angle = 2 * pi / antennaDiagram.length * i;
             var radius = maxRadius * (antennaDiagram[i]/60 + 1);
-            //console.log(angle);
-            //console.log(sXtoP(formConfigurations.antenna_center_x) + radius * Math.cos(angle))
-            //console.log(sXtoP(formConfigurations.antenna_center_x) + radius * Math.sin(angle))
             context.lineTo(sXtoP(formConfigurations.antenna_center_x) + radius * Math.cos(angle), sYtoP(formConfigurations.antenna_center_y) + radius * Math.sin(angle));
         }
         context.stroke();
@@ -367,7 +364,6 @@ async function animateDiagrams(nextTime){
     var mousePromise = 0;
     if (window.printMouseData){
         if (typeof window.mouseStats === "object"){
-            //console.log(window.mouseStats);
             mouseTexts = [
                 "Mouse position:",
                 "x: " + treatNumber(window.mouseStats.x) + ", y: " + treatNumber(window.mouseStats.y) + " (dist: " + treatNumber(window.mouseStats.distance) + ", azimuth: " + (window.mouseStats.azimuth % 360).toFixed(2).padStart(7, " ") + ")",
@@ -427,7 +423,6 @@ async function animateDiagrams(nextTime){
                 ncircles++;
             }
         }
-        //console.log(ncircles);
     }
     if (formConfigurations.drawSinusoidPeak || formConfigurations.drawWavefronts){
         context.stroke();
@@ -486,11 +481,10 @@ function onMouseMove(event){
     }
     startX = event.clientX;
     startY = event.clientY;
-    //console.log("Mouse is at " + startX + ", " + startY);
 }
 
 function resizeCanvas() {
-    console.log("resizing canvas");
+    console.log("Resizing canvas");
     const canvasIDs = ["diagramCanvas", "fieldsCanvas", "staticElementsCanvas"];
     canvasIDs.forEach(function(id){
         let canvas = document.getElementById(id);
@@ -504,14 +498,12 @@ function resizeCanvas() {
 $(function(){
     $(".triggerFormUpdate").change(function() {updateForm();});
     $("#drawMagnitude").change(function(){
-        console.log("tihs happened");
         if ($("#drawMagnitude").prop('checked')){
             $("#drawElectricField").prop('checked', false);;
         }
         updateForm();
     });
     $("#drawElectricField").change(function(){
-        console.log("that happened");
         if ($("#drawElectricField").prop('checked')){
             $("#drawMagnitude").prop('checked', false);;
         }
@@ -563,7 +555,6 @@ $(function(){
         startX = event.clientX;
         startY = event.clientY;
         window.dragging = true;
-        console.log(startX)
     }, false);
     canvas.addEventListener('mouseup', onMouseUp, false);
     canvas.addEventListener('mousemove', onMouseMove, false);
