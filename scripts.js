@@ -538,6 +538,7 @@ $(function(){
             wasm_filename += "_simd";
         }
         if (ret[1]){
+            // There seems to be a bug in firefox when loading our wasm with all capabilities, so we choose one to remove
             //wasm_filename += "_bm";
         }
         // Threads will only work if we also have shared memories available:
