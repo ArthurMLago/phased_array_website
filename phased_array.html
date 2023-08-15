@@ -12,22 +12,7 @@
     <body>
         <div id="configDivWrapper">
             <div id="configDiv">
-                <h3>Animation Control</h3>
-
-                <div>
-                    <button class="ui-button ui-widget ui-corner-all">
-                        Stop
-                    </button>
-                    <button class="ui-button ui-widget ui-corner-all ui-button-icon-only" title="Button with icon only">
-                        <span class="ui-icon ui-icon-gear"></span> Pause
-                    </button>
-                    <button class="ui-button ui-widget ui-corner-all">
-                        <span class="ui-icon ui-icon-gear"></span> Play
-                    </button>
-                    <button class="ui-button ui-widget ui-corner-all">
-                        <span class="ui-icon ui-icon-gear"></span> Fast forward to stationary state
-                    </button>
-                </div>
+                <h2>Animation Control</h2>
                 <div>
                     <label for="animSpeed">Animation Speed:</label><input id="animSpeed"  class="triggerFormUpdate floatInput" value="3e-13"/>
                 </div>
@@ -44,12 +29,12 @@
                         <label for="sinusoidPeakStep">Every</label><input id="sinusoidPeakStep" type="number" min=1 class="triggerFormUpdate intInput" value=10 /> peaks
                     </div>
                 </div>
-                <div class=checkbox-row>
-                    <label for="drawWaveFronts">Draw Wavefronts:</label><input type="checkbox" id="drawWaveFronts" class="triggerFormUpdate">
-                    <div id="wavefrontDetails" class=checkbox-extrainfo style="display:none;">
-                        <label for="waveFrontStep">Every</label><input id="waveFrontStep" type="number" min=1 class="triggerFormUpdate intInput" value=10 /> peaks
-                    </div>
-                </div>
+                <!-- <div class=checkbox-row> -->
+                <!--     <label for="drawWaveFronts">Draw Wavefronts:</label><input type="checkbox" id="drawWaveFronts" class="triggerFormUpdate"> -->
+                <!--     <div id="wavefrontDetails" class=checkbox-extrainfo style="display:none;"> -->
+                <!--         <label for="waveFrontStep">Every</label><input id="waveFrontStep" type="number" min=1 class="triggerFormUpdate intInput" value=10 /> peaks -->
+                <!--     </div> -->
+                <!-- </div> -->
                 <div class=checkbox-row>
                     <label for="drawDiagram">Draw Antenna Diagram:</label><input type="checkbox" id="drawAntennaDiagram" class="triggerFormUpdate">
                 </div>
