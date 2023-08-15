@@ -4,7 +4,7 @@ body{
 }
 
 #configDiv{
-    padding: 16px;
+    padding: 0px 16px 0 16px;
     /*text-align: right;*/
     float:left;
     display: inline-block;
