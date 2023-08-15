@@ -99,7 +99,6 @@ onmessage = (e) => {
                 consoleloga: v => console.log("C++ console addr:: " + v),
                 emscripten_notify_memory_growth: v => console.log("emsncripten grow!" + v),
                 mainScriptUrlOrBlob: e.data.filename,
-                //}
             };
             importScripts(e.data.filename);
             createMyModule(importModule).then(function(instance){

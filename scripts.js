@@ -68,6 +68,85 @@ function updatePhaseVariation(){
     updateForm();
 }
 
+function readCustomAntenna(){
+    // Get the text from the textbox
+    var text = $('#customAntennaField').val();
+
+    // Remove any whitespace and split the text by commas
+    var coordinates = text.match(/\([^)]+\)/g);
+
+    // Initialize the list of lists
+    window.formConfigurations.antennas = [];
+
+    // Iterate over the coordinates and group them into lists of 3
+    for (var i = 0; i < coordinates.length; i++) {
+        // Remove the outer parenthesis from each coordinate
+        var coordinate = coordinates[i].replace(/^\(|\)$/g, '');
+
+        // Split the coordinate by commas
+        var point = coordinate.split(',');
+
+        // If only two coordinates are provided, assume Z as zero
+        if (point.length === 2) {
+            point.push('0');
+        }
+
+        point = point.map(parseFloat);
+
+        // Add the point to the list of lists
+        if (point.length > 0){
+            window.formConfigurations.antennas.push(point);
+        }
+    }
+}
+
+function readCustomFeeds(){
+    // Get the text from the textbox
+    var text = $('#customFeedsField').val();
+
+    // Split the text into individual complex numbers
+    var complexNumbers = text.split(',');
+
+    // Initialize an empty array to store the parsed objects
+    window.formConfigurations.feeds = [];
+    window.formConfigurations.angles = [];
+
+    // Iterate over each complex number
+    for (var i = 0; i < window.formConfigurations.antennas.length; i++) {
+        // Initialize variables for real and imaginary parts
+        var re = 0, im = 0;
+        if (complexNumbers.length > i){
+            // Remove any leading/trailing whitespace
+            var complexNumber = complexNumbers[i].trim();
+
+            // Split the complex number into real and imaginary parts
+            var parts = complexNumber.split('+');
+
+            // Iterate over each part
+            for (var j = 0; j < parts.length; j++) {
+                var part = parts[j].trim();
+
+                // Check if the part contains 'i', if so, it is the imaginary part
+                if (part.indexOf('i') !== -1) {
+                    im += parseFloat(part.replace('i', ''));
+                } else {
+                    re += parseFloat(part);
+                }
+            }
+        }
+
+        // Create an object with re and im keys
+        var parsedNumber = {
+            re: re,
+            im: im
+        };
+
+        // Add the parsed object to the array
+        window.formConfigurations.feeds.push(parsedNumber);
+        window.formConfigurations.angles.push(Math.atan2(parsedNumber.im, parsedNumber.re));
+    }
+}
+
 function updateForm(){
     if ($("#customAntennaSelect").prop('checked')){
         $("#customAntennaField").show();
@@ -77,6 +156,8 @@ function updateForm(){
         // Set custom Feeds, no point in trying to set feeds for a non-standard antenna:
         $("#customFeedsSelect").prop("checked",true);
         $("#customFeedsSelect").prop( "disabled", true );
+
+        readCustomAntenna();
     }else{
         $("#customAntennaField").hide();
         $("#numberElements").prop( "disabled", false );
@@ -99,6 +180,8 @@ function updateForm(){
         $("#customFeedsField").show();
         $("#wavefrontAngle").prop( "disabled", true );
         $("#phaseVariationByElement").prop( "disabled", true );
+
+        readCustomFeeds();
     }else{
         var phaseVar = 2 * pi * $("#elementsHorizontalDistance").val() * Math.sin($("#wavefrontAngle").val() * pi / 180) / $("#waveSpeed").val() * $("#carrierFreq").val();
         $("#phaseVariationByElement").val(phaseVar * 180 / pi);
@@ -238,7 +321,6 @@ function workerCallback(e){
     }else if(e.data.type == "ready"){
         fieldsWorkerReady = true;
     }else if(e.data.type == "diagram"){
-        console.log("aaaaaaaaaaa");
         window.antennaDiagram = e.data.data.slice();
         window.pendingStaticsUpdate = true;
     }
