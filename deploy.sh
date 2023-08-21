@@ -47,7 +47,7 @@ for simd in 0 1; do
     done
 done
 
-cp gear.svg phased_array.html scripts.js fieldsWorker.js style.css deploy
+cp gear.svg phased_array.html scripts.js fieldsWorker.js style.css color_scale.png deploy
 cp jquery-3.6.2.min.js wasm-feature-detect.js deploy
 # -sMODULARIZE -s 'EXPORT_NAME="createMyModule"'
 

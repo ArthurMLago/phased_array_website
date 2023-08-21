@@ -15,18 +15,64 @@
                 <h2>Animation Control</h2>
                 <div>
                     <label for="animSpeed">Animation Speed:</label><input id="animSpeed"  class="triggerFormUpdate floatInput" value="3e-13"/>
+                    <div class="tooltip">?
+                        <div class="tooltiptext">
+                            <p>
+                                A modifier on the speed time passes on the simulation. Real time(multiplier 1) would be too fast when dealing with electromagnetic waves(wave speed of 3e8), so we can set a much lower multiplier(for example, 1e-14, meaning 10 elevated to -14).
+                            </p>
+                        </div>
+                    </div>
                 </div>
                 <h4>Draw:</h4>
                 <div class=checkbox-row>
                     <label for="drawElectricField">Draw Electric Field:</label><input type="checkbox" id="drawElectricField">
+                    <div class="tooltip">?
+                        <div class="tooltiptext">
+                            <p>
+                                Paints the entire background with colors depending on the electric/magnetic field. The naming assumes electromagnetic waves, where electric and magnetic fields continually oscalite.
+                            </p>
+                            <p>
+                                Yellow indicates positive wave, blue represents negative waves. This uses a linear scale.
+                                Places with lower magnitudes will oscillate less and be closer to blacks.
+                            </p>
+                            <img src="color_scale.png" height=32px width=128px />
+                            <p>
+                                The image will be continuosly updated, since the wave is constantly oscallating depending on time in addition to position.
+                            </p>
+                        </div>
+                    </div>
                 </div>
                 <div class=checkbox-row>
                     <label for="drawMagnitude">Draw Magnitude:</label><input type="checkbox" id="drawMagnitude">
+                    <div class="tooltip">?
+                        <div class="tooltiptext">
+                            <p>
+                                Paints the entire background with colors depending on the magnitude of the electromagnetic field. Naturally, places where constructive interference happens will show higher magnitude.
+                            </p>
+                            <p>
+                                Yellow indicates higher magnitudes, blue represents lower magnitudes. Magnitudes are in a logarithmic scale.
+                            </p>
+                            <img src="color_scale.png" height=32px width=128px />
+                            <p>
+                                This will be a static image, since magnitudes depend solely on antenna geometry, transmitted signals, and measurement position.
+                            </p>
+                        </div>
+                    </div>
                 </div>
                 <div class=checkbox-row>
                     <label for="drawSinusoidPeaks">Draw Sinusoid Peaks:</label><input type="checkbox" id="drawSinusoidPeaks" class="triggerFormUpdate">
                     <div id="sinusoidPeakDetails" class=checkbox-extrainfo style="display:none;">
                         <label for="sinusoidPeakStep">Every</label><input id="sinusoidPeakStep" type="number" min=1 class="triggerFormUpdate intInput" value=10 /> peaks
+                    </div>
+                    <div class="tooltip">?
+                        <div class="tooltiptext">
+                            <p>
+                                Draws a circle for each antenna element at the moment the wave is at it's peak. Since this might draw too many circles, we can set a number of peaks to skip.
+                            </p>
+                            <p>
+                                This allows you to see the points in space where the waves traveled an equal distance, leading to constructive interference and higher magnitudes. You can notice that when enabling sinusoid peaks and draw fields, the sinusoid peaks are always at the middle of the yellow regions.
+                            </p>
+                        </div>
                     </div>
                 </div>
                 <!-- <div class=checkbox-row> -->
@@ -37,41 +83,136 @@
                 <!-- </div> -->
                 <div class=checkbox-row>
                     <label for="drawDiagram">Draw Antenna Diagram:</label><input type="checkbox" id="drawAntennaDiagram" class="triggerFormUpdate">
+                    <div class="tooltip">?
+                        <div class="tooltiptext">
+                            <p>
+                                Draw a classic antenna diagram depending on antenna element positions and feeds.
+                            </p>
+                        </div>
+                    </div>
                 </div>
 
-                <button>Zoom to fit</button>
+                <!-- <button>Zoom to fit</button> -->
 
                 <h3>Antenna Configuration</h3>
                 <label for="customAntennaSelect">Custom Antennas:</label><input type="checkbox" id="customAntennaSelect" class="triggerFormUpdate">
+                <div class="tooltip">?
+                    <div class="tooltiptext">
+                        <p>
+                            Enables a text field for you to input custom antenna elements positions instead of a linear antenna with set distances. Many automatic features are disabled, and you also must manually set feeds.
+                        </p>
+                        <p>
+                            Custom antenna positions are in the form "(x1,y1,z1), (x2,y2,z2), ...".
+                        </p>
+                    </div>
+                </div>
                 <textarea id="customAntennaField" style="display:none;" class="triggerFormUpdate"></textarea>
                 <div class=checkbox-row>
                     <label for="numberElements">Number of Elements:</label><input id="numberElements" type="Number" min=0 value=5 class="triggerFormUpdate intInput"/>
+                    <div class="tooltip">?
+                        <div class="tooltiptext">
+                            <p>
+                                The number of antenna elements when creating a standard linear antenna.
+                            </p>
+                        </div>
+                    </div>
                 </div>
                 <div class=checkbox-row>
-                <label for="elementsHorizontalDistance">Elements Horizontal Distance:</label><input id="elementsHorizontalDistance" value=0.05 class="floatInput" />
+                    <label for="elementsHorizontalDistance">Elements Horizontal Distance:</label><input id="elementsHorizontalDistance" value=0.05 class="floatInput" />
+                    <div class="tooltip">?
+                        <div class="tooltiptext">
+                            <p>
+                                The distance in meters betwen antenna elements when creating a standard linear antenna.
+                            </p>
+                            <p>
+                                Ideal antenna elements distance is half a wavelenth.
+                            </p>
+                        </div>
+                    </div>
                 </div>
 
                 <h3>Signal Configuration</h3>
                 <div class=checkbox-row>
                     <label for="waveSpeed">Wave Speed:</label><input id="waveSpeed" value=3e8 class="triggerFormUpdate floatInput" />
+                    <div class="tooltip">?
+                        <div class="tooltiptext">
+                            <p>
+                                The speed in which the waves propagate, in meters per second.
+                            </p>
+                            <p>
+                                When dealing with electromagnetic waves, the propagation speed is the speed of light, 3e8.
+                            </p>
+                        </div>
+                    </div>
                 </div>
                 <div class=checkbox-row>
                     <label for="carrierFreq">Carrier Frequency:</label><input id="carrierFreq" value=3e9 class="triggerFormUpdate floatInput" />
+                    <div class="tooltip">?
+                        <div class="tooltiptext">
+                            <p>
+                                The frequency the waves oscillate in time, in Hertz.
+                            </p>
+                            <p>
+                                Roughly 2.4e9 for wi-fi, for example.
+                            </p>
+                        </div>
+                    </div>
                 </div>
                 <label for="customFeedsSelect">Custom Feeds:</label><input type="checkbox" id="customFeedsSelect" class="triggerFormUpdate">
+                <div class="tooltip">?
+                    <div class="tooltiptext">
+                        <p>
+                            Enables a text field for you to manually set the feeds of each antenna element, allowing you to set the complex number that will be multiplied by the output signal of each antenna element, meaning possibly setting custom magnitudes and phases.
+                        </p>
+                        <p>
+                            Format is "R1 + I1i, R2 + I2i, ..."
+                        </p>
+                    </div>
+                </div>
                 <textarea id="customFeedsField" style="display:none;" class="triggerFormUpdate"></textarea>
                 <div class=checkbox-row>
                     <label for="wavefrontAngle">Wavefront Angle:</label><input id="wavefrontAngle" class="triggerFormUpdate floatInput"/>
+                    <div class="tooltip">?
+                        <div class="tooltiptext">
+                            <p>
+                                When dealing with a phased array standard linear antenna, this sets the angle the antenna electronically steers, in degrees.
+                            </p>
+                            <p>
+                                This will automatically set the value in Phase Variation By Element to achieve this angle of electronic steering.
+                            </p>
+                        </div>
+                    </div>
                 </div>
                 <div class=checkbox-row>
                     <label for="phaseVariationByElement">Phase Variation By Element:</label><input id="phaseVariationByElement" class="floatInput" />
+                    <div class="tooltip">?
+                        <div class="tooltiptext">
+                            <p>
+                                When dealing with a phased array standard linear antenna, this sets the phase shift difference betwen neighbour antenna elements, in degrees.
+                            </p>
+                        </div>
+                    </div>
                 </div>
                 <h3>Performance Options:</h3>
                 <div class=checkbox-row>
                     <label for="resolution">Resolution:</label><input id="resolution" type="Number" min=1 value=3 class="triggerFormUpdate intInput" />
+                    <div class="tooltip">?
+                        <div class="tooltiptext">
+                            <p>
+                                calculating fields and magnitudes must be done for each position in space, and involve sheavy coimputation. To save procesing, we can calculate the outputs for each resolution x resolution pixels square instead of every pixel, severy speeding up computation, but leading to less detailed images.
+                            </p>
+                        </div>
+                    </div>
                 </div>
                 <div class=checkbox-row>
                     <label for="nthreads">Number of Threads:</label><input id="nthreads" type="Number" min=1 value=4 class="triggerFormUpdate intInput" />
+                    <div class="tooltip">?
+                        <div class="tooltiptext">
+                            <p>
+                                If your browser is capable of parallel computation in the browser, this sets the number of threads we will use.
+                            </p>
+                        </div>
+                    </div>
                 </div>
 
             </div>
