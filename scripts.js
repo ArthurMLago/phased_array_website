@@ -259,7 +259,6 @@ function updateForm(){
         context.clearRect(0, 0, canvas.width, canvas.height);
     }
 
-    pendingStaticsUpdate = true;
     if (fieldsWorkerReady){
         console.log("Sending updateparams to worker")
         var workerCommand = {};
@@ -289,6 +288,8 @@ function updateForm(){
             pendingProcessing = true;
         }
         sendToWorker({command:"getAntennaDiagram"});
+    }else{
+        window.pendingStaticsUpdate = true;
     }
 }
 

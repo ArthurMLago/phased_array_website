@@ -162,7 +162,6 @@ void calculateAntennaDiagram(){
             });
         }
         for (int i = 0; i < saved_params.nthreads; i++){
-            magnitudeSumFarRange += magnitudeSumFarRangePerThread[i];
             tlist[i]->join();
             delete tlist[i];
         }
