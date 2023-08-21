@@ -41,7 +41,7 @@ for simd in 0 1; do
                 fi
                 OUT_FILENAME="${OUT_FILENAME}${OUT_FILENAME_SUFFIX}"
 
-                emcc  wasm.cpp --no-entry -o $OUT_FILENAME -s ASSERTIONS=1 -s IMPORTED_MEMORY=1 -s ALLOW_MEMORY_GROWTH=1 -s WASM=1 ${CFLAGS} -O3
+                emcc  wasm.cpp --no-entry -o $OUT_FILENAME -s ASSERTIONS=1 -s IMPORTED_MEMORY=1 -s ALLOW_MEMORY_GROWTH=1 -s WASM=1 ${CFLAGS} -O3 &
             done
         done
     done
@@ -50,4 +50,5 @@ done
 cp gear.svg phased_array.html scripts.js fieldsWorker.js style.css color_scale.png deploy
 cp jquery-3.6.2.min.js wasm-feature-detect.js deploy
 # -sMODULARIZE -s 'EXPORT_NAME="createMyModule"'
+wait
 
