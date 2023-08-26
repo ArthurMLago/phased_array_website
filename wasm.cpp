@@ -33,12 +33,6 @@
 #else
 #endif
 
-#if PARALLEL_ENABLED
-    #define TEST_FILE_PREFIX "p"
-#else
-    #define TEST_FILE_PREFIX "s"
-#endif
-
 #define FAR_FIELD 1e3
 #define ANTENNA_DIAGRAM_DIVS 1800
 
@@ -114,7 +108,7 @@ inline retT sumAntennasAt(calcT x, calcT y){
 
 void calculateAntennaDiagram(){
     magnitudeSumFarRange = 0;
-    #if !PARALLEL_ENABLED
+    // #if !PARALLEL_ENABLED
         for (int i = 0; i < ANTENNA_DIAGRAM_DIVS; i++){
             float angle = 2 * M_PI / ANTENNA_DIAGRAM_DIVS * i;
             struct cf64 sum = sumAntennasAt<float, struct cf64>(FAR_FIELD * cos(angle) + saved_params.antennaCenterX, FAR_FIELD * sin(angle) + saved_params.antennaCenterY);
@@ -129,43 +123,43 @@ void calculateAntennaDiagram(){
             antennaDiagram[i] /= magnitudeSumFarRange;
             antennaDiagram[i] = 20 * log10(antennaDiagram[i] + 0.001);
         }
-    #else
-        // Number of elements each thread will calculate(at most, we may have underworked threads):
-        unsigned elements_per_thread = (ANTENNA_DIAGRAM_DIVS - 1 + saved_params.nthreads)/saved_params.nthreads;
-        // Spawn a bunch of threads, use C++ lambda functions
-        std::thread *tlist[saved_params.nthreads];
-        float magnitudeSumFarRangePerThread[saved_params.nthreads];
-        std::barrier sync_point(saved_params.nthreads);
-        for (int i = 0; i < saved_params.nthreads; i++){
-            tlist[i] = new std::thread([&magnitudeSumFarRangePerThread, i, elements_per_thread, &sync_point] () {
-                magnitudeSumFarRangePerThread[i] = 0;
-                for (int j = i * elements_per_thread; j < std::min((unsigned)(i + 1) * elements_per_thread, (unsigned)ANTENNA_DIAGRAM_DIVS); j++){
-                    float angle = 2 * M_PI / ANTENNA_DIAGRAM_DIVS * j;
-                    struct cf64 sum = sumAntennasAt<float, struct cf64>(FAR_FIELD * cos(angle), FAR_FIELD * sin(angle));
-                    antennaDiagram[j] = sqrtf(sum.re * sum.re + sum.im * sum.im);
-                    magnitudeSumFarRangePerThread[i] += antennaDiagram[j];
-                }
-                sync_point.arrive_and_wait();
-                if (i == 0){
-                    magnitudeSumFarRange = 0;
-                    for (int j = 0; j < saved_params.nthreads; j++){
-                        magnitudeSumFarRange += magnitudeSumFarRangePerThread[j];
-                    }
-                    magnitudeSumFarRange /= ANTENNA_DIAGRAM_DIVS;
-                    magnitudeSumFarRange *= saved_params.nAnt / 2.0;
-                }
-                sync_point.arrive_and_wait();
-                for (int j = i * elements_per_thread; j < std::min((unsigned)(i + 1) * elements_per_thread, (unsigned)ANTENNA_DIAGRAM_DIVS); j++){
-                    antennaDiagram[j] /= magnitudeSumFarRange;
-                    antennaDiagram[j] = 20 * log10(antennaDiagram[j] + 0.001);
-                }
-            });
-        }
-        for (int i = 0; i < saved_params.nthreads; i++){
-            tlist[i]->join();
-            delete tlist[i];
-        }
-    #endif
+    // #else
+    //     // Number of elements each thread will calculate(at most, we may have underworked threads):
+    //     unsigned elements_per_thread = (ANTENNA_DIAGRAM_DIVS - 1 + saved_params.nthreads)/saved_params.nthreads;
+    //     // Spawn a bunch of threads, use C++ lambda functions
+    //     std::thread *tlist[saved_params.nthreads];
+    //     float magnitudeSumFarRangePerThread[saved_params.nthreads];
+    //     std::barrier sync_point(saved_params.nthreads);
+    //     for (int i = 0; i < saved_params.nthreads; i++){
+    //         tlist[i] = new std::thread([&magnitudeSumFarRangePerThread, i, elements_per_thread, &sync_point] () {
+    //             magnitudeSumFarRangePerThread[i] = 0;
+    //             for (int j = i * elements_per_thread; j < std::min((unsigned)(i + 1) * elements_per_thread, (unsigned)ANTENNA_DIAGRAM_DIVS); j++){
+    //                 float angle = 2 * M_PI / ANTENNA_DIAGRAM_DIVS * j;
+    //                 struct cf64 sum = sumAntennasAt<float, struct cf64>(FAR_FIELD * cos(angle), FAR_FIELD * sin(angle));
+    //                 antennaDiagram[j] = sqrtf(sum.re * sum.re + sum.im * sum.im);
+    //                 magnitudeSumFarRangePerThread[i] += antennaDiagram[j];
+    //             }
+    //             sync_point.arrive_and_wait();
+    //             if (i == 0){
+    //                 magnitudeSumFarRange = 0;
+    //                 for (int j = 0; j < saved_params.nthreads; j++){
+    //                     magnitudeSumFarRange += magnitudeSumFarRangePerThread[j];
+    //                 }
+    //                 magnitudeSumFarRange /= ANTENNA_DIAGRAM_DIVS;
+    //                 magnitudeSumFarRange *= saved_params.nAnt / 2.0;
+    //             }
+    //             sync_point.arrive_and_wait();
+    //             for (int j = i * elements_per_thread; j < std::min((unsigned)(i + 1) * elements_per_thread, (unsigned)ANTENNA_DIAGRAM_DIVS); j++){
+    //                 antennaDiagram[j] /= magnitudeSumFarRange;
+    //                 antennaDiagram[j] = 20 * log10(antennaDiagram[j] + 0.001);
+    //             }
+    //         });
+    //     }
+    //     for (int i = 0; i < saved_params.nthreads; i++){
+    //         tlist[i]->join();
+    //         delete tlist[i];
+    //     }
+    // #endif
 }
 
 void calculate_magnitudes(float startX, float startY, unsigned resolution, unsigned width, unsigned height, float*outMag, float*outPh){
