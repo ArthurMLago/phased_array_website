@@ -404,11 +404,11 @@ function drawStaticElements(){
         context.strokeStyle = "#ff44dd";
         context.setLineDash([]);
         context.beginPath();
-        context.moveTo(sXtoP(formConfigurations.antenna_center_x) + maxRadius * (antennaDiagram[0]/60 + 1), sYtoP(formConfigurations.antenna_center_y));
+        context.moveTo(sXtoP(formConfigurations.antenna_center_x) + maxRadius * (window.antennaDiagram[0]/60 + 1), sYtoP(formConfigurations.antenna_center_y));
         var maxRadius = Math.min(canvas.width, canvas.height) * 4 / 5 / 2;
-        for (var i = 0; i < antennaDiagram.length; i++){
-            var angle = 2 * pi / antennaDiagram.length * i;
-            var radius = maxRadius * (antennaDiagram[i]/60 + 1);
+        for (var i = 0; i < window.antennaDiagram.length; i++){
+            var angle = 2 * pi / window.antennaDiagram.length * i;
+            var radius = maxRadius * (window.antennaDiagram[i]/60 + 1);
             context.lineTo(sXtoP(formConfigurations.antenna_center_x) + radius * Math.cos(angle), sYtoP(formConfigurations.antenna_center_y) + radius * Math.sin(angle));
         }
         context.stroke();
