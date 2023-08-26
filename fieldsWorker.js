@@ -22,7 +22,7 @@ function sendUpdate(data){
         globals.wsInstance._exportedFree(globals.antennasOffset);
     }
     globals.antennasOffset = globals.wsInstance._exportedMalloc(antennasSize);
-    console.log("globals.antennasOffset: " + globals.antennasOffset);
+    // console.log("globals.antennasOffset: " + globals.antennasOffset);
     const antArray = new Float32Array(globals.bigMem.buffer, globals.antennasOffset, data.ants.length * 3);
     for (i = 0; i < data.ants.length; i++){
         antArray[i*3 + 0] = data.ants[i][0];
@@ -36,7 +36,7 @@ function sendUpdate(data){
         globals.wsInstance._exportedFree(globals.feedsOffset);
     }
     globals.feedsOffset = globals.wsInstance._exportedMalloc(feedsSize);
-    console.log("globals.feedsOffset: " + globals.feedsOffset);
+    // console.log("globals.feedsOffset: " + globals.feedsOffset);
     const feedsArray = new Float32Array(globals.bigMem.buffer, globals.feedsOffset, data.ants.length * 2);
     for (i = 0; i < data.ants.length; i++){
         feedsArray[i*2 + 0] = data.feeds[i].re;
@@ -49,7 +49,7 @@ function sendUpdate(data){
         globals.wsInstance._exportedFree(globals.outOffset);
     }
     globals.outOffset = globals.wsInstance._exportedMalloc(outSize);
-    console.log("globals.outOffset: " + globals.feedsOffset);
+    // console.log("globals.outOffset: " + globals.feedsOffset);
     globals.outImage = new Uint8Array(globals.bigMem.buffer, globals.outOffset, data.width * data.height * 4);
 
     // Antenna Diagram:
@@ -58,7 +58,7 @@ function sendUpdate(data){
         globals.wsInstance._exportedFree(globals.diagramOffset);
     }
     globals.diagramOffset = globals.wsInstance._exportedMalloc(diagramSize);
-    console.log("globals.diagramOffset: " + globals.diagramOffset);
+    // console.log("globals.diagramOffset: " + globals.diagramOffset);
     globals.outDiagram = new Float32Array(globals.bigMem.buffer, globals.diagramOffset, 720);
 
     // Call updateParams in C++:
@@ -157,7 +157,7 @@ onmessage = (e) => {
             if (checkReady()){
                 let address = globals.wsInstance._getAntennaDiagram();
                 const antennaDiagram = new Float32Array(globals.bigMem.buffer, address, 1800);
-                postMessage({type: "diagram", data: antennaDiagram});
+                postMessage({type: "diagram", data: antennaDiagram.slice()});
             }
             break;
     }
