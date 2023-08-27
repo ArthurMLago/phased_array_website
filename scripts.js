@@ -1,5 +1,3 @@
-
-
 var formConfigurations = {
     animationSpeed: 1/1000,
     drawElectricField: false,
@@ -47,6 +45,29 @@ var workerPromisesResolves = {};
 var globalMsgId = 0;
 
 const pi = 3.14159;
+
+const relevantFormIds = [
+    "customAntennaSelect",
+    "numberElements",
+    "elementsHorizontalDistance",
+    "customFeedsSelect",
+    "wavefrontAngle",
+    "phaseVariationByElement",
+    "drawSinusoidPeaks",
+    "drawWaveFronts",
+    "animSpeed",
+    "drawElectricField",
+    "drawMagnitude",
+    "sinusoidPeakStep",
+    "waveFrontStep",
+    "drawAntennaDiagram",
+    "resolution",
+    "nthreads",
+    "waveSpeed",
+    "carrierFreq",
+    "customAntennaField",
+    "customFeedsField"
+];
 
 function sXtoP(posX){
     return (posX - simulationState.simulatedWorldStartX) * simulationState.DrawScale
@@ -216,6 +237,8 @@ function updateForm(){
     }else{
         $("#wavefrontDetails").hide();
     }
+
+    $("#shareURL").val(parseFormToURL());
 
     formConfigurations.animationSpeed = parseFloat($("#animSpeed").val());
     formConfigurations.drawElectricField = $("#drawElectricField").prop('checked');
@@ -578,7 +601,43 @@ function resizeCanvas() {
     updateForm();
 }
 
+function fetchParamsFromURL() {
+    const urlParams = new URLSearchParams(window.location.search);
+
+    relevantFormIds.forEach(function(id) {
+        if (urlParams.has(id)) {
+            const value = urlParams.get(id);
+            if (value === "true" || value === "false") {
+                $("#" + id).prop('checked', value === "true");
+            } else {
+                $("#" + id).val(value);
+            }
+        }
+    });
+}
+
+function parseFormToURL() {
+    let url = window.location.origin + window.location.pathname + "?";
+
+    relevantFormIds.forEach(function(id, index) {
+        const value = $("#" + id).prop('type') === 'checkbox' ? $("#" + id).prop('checked') : $("#" + id).val();
+        if (value !== "") {
+            url += (index > 0 ? "&" : "") + id + "=" + encodeURIComponent(value);
+        }
+    });
+
+    return url;
+}
+
+function copyURLToClipboard(){
+   var input = $('#shareURL');
+   input.select();
+   navigator.clipboard.writeText(input.val());
+}
+
+
 $(function(){
+    fetchParamsFromURL();
     $(".triggerFormUpdate").change(function() {updateForm();});
     $("#drawMagnitude").change(function(){
         if ($("#drawMagnitude").prop('checked')){
