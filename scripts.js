@@ -600,6 +600,43 @@ function resizeCanvas() {
 
     updateForm();
 }
+function autoZoom() {
+    // Find the minimum and maximum coordinates
+    let minX = Infinity;
+    let minY = Infinity;
+    let maxX = -Infinity;
+    let maxY = -Infinity;
+
+    for (let i = 0; i < formConfigurations.antennas.length; i++) {
+        const [x, y, z] = formConfigurations.antennas[i];
+        minX = Math.min(minX, x);
+        minY = Math.min(minY, y);
+        maxX = Math.max(maxX, x);
+        maxY = Math.max(maxY, y);
+    }
+
+    // Calculate the required DrawScale
+    const canvasWidth = window.innerWidth;
+    const canvasHeight = window.innerHeight;
+    const desiredWidth = canvasWidth * 0.05;
+    const desiredHeight = canvasHeight * 0.05;
+    const scaleX = desiredWidth / (maxX - minX);
+    const scaleY = desiredHeight / (maxY - minY);
+    const drawScale = Math.min(scaleX, scaleY);
+
+    // Calculate the new simulatedWorldStartX and simulatedWorldStartY
+    const centerX = (maxX + minX) / 2;
+    const centerY = (maxY + minY) / 2;
+    const simulatedWorldStartX = centerX - (canvasWidth / (2 * drawScale));
+    const simulatedWorldStartY = centerY + (canvasHeight / (2 * drawScale));
+
+    // Update the simulationState variables
+    simulationState.simulatedWorldStartX = simulatedWorldStartX;
+    simulationState.simulatedWorldStartY = simulatedWorldStartY;
+    simulationState.DrawScale = drawScale;
+
+    updateForm();
+}
 
 function fetchParamsFromURL() {
     const urlParams = new URLSearchParams(window.location.search);
@@ -656,6 +693,7 @@ $(function(){
         $("#wavefrontAngle").val(wavefrontAngle * 180 / pi);
         updateForm();
     });
+    $("#zoomToFit").click(autoZoom);
 
     $("#toggleConfigurationWindow").click(function(){$("#configDiv").animate({width:'toggle'},350)});
     resizeCanvas();
@@ -663,6 +701,7 @@ $(function(){
 
     updateForm();
     requestAnimationFrame(animate);
+    autoZoom();
     //
     wasmFeatureDetect.simd().then(function(hasSimd){console.log("SIMD support: " + hasSimd)});
     Promise.all([wasmFeatureDetect.simd(), wasmFeatureDetect.bulkMemory(), wasmFeatureDetect.threads()]).then(function(ret){
