@@ -20,12 +20,13 @@ var formConfigurations = {
 var simulationState = {
     simulatedWorldStartX: -0.1,
     simulatedWorldStartY: -.5,
+    // Draw Scale expressed in pixels per unit:
     DrawScale: 100,
     simulationTime: 0
 }
 
-var startX, startY;
-var dragging;
+var lastMouseX, lastMouseY;
+var currentPointers = {};
 var movingAverageRenderTime = 1/60;
 var alreadyProcessing = false;
 var pendingProcessing = true;
@@ -34,6 +35,8 @@ var mouseStats = 0;
 var fieldData = 0;
 var printMouseData = true;
 var antennaDiagram = [];
+    let lastPinchDistance = 0;
+    let lastDrawScale = 1;
 
 var fieldsWorker = 0;
 var fieldsWorkerReady = false;
@@ -83,6 +86,16 @@ function sYtoP(posY){
 
 function PtosY(pY){
     return -pY/simulationState.DrawScale + simulationState.simulatedWorldStartY;
+}
+
+function zoomKeepingPosition(newScale, pixelX, pixelY){
+    // Basically PtosX after equals PtosX before
+    simulationState.simulatedWorldStartX = simulationState.simulatedWorldStartX + pixelX/simulationState.DrawScale - pixelX/newScale;
+    simulationState.simulatedWorldStartY = simulationState.simulatedWorldStartY - pixelY/simulationState.DrawScale + pixelY/newScale;
+    simulationState.DrawScale = newScale;
+
+    console.log(simulationState.simulatedWorldStartX);
+    console.log(simulationState.simulatedWorldStartY);
 }
 
 function updatePhaseVariation(){
@@ -487,7 +500,7 @@ async function animateDiagrams(nextTime){
         // Now that we used the mouse data, go ahead and requst new one:
         if (fieldsWorkerReady){
             mousePromise = new Promise(function(resolve, reject){
-                sendToWorker({command: "getMouse", t: nextTime, mx: PtosX(startX), my: PtosY(startY), cx: formConfigurations.antenna_center_x, cy: formConfigurations.antenna_center_y}, resolve);
+                sendToWorker({command: "getMouse", t: nextTime, mx: PtosX(lastMouseX), my: PtosY(lastMouseY), cx: formConfigurations.antenna_center_x, cy: formConfigurations.antenna_center_y}, resolve);
             });
         }
     }
@@ -567,26 +580,6 @@ function restartWorker(){
     window.fieldsWorker.postMessage({command:"init", filename:window.wasm_filename});
     //window.fieldsWorker.postMessage(["updateParams", window.fieldsModule]);
 
-}
-
-function onMouseUp(event){
-    let canvas = document.getElementById("diagramCanvas");
-    //canvas.removeEventListener('mouseup', onMouseUp, false);
-    //canvas.removeEventListener('mousemove', onMouseMove, false);
-    window.dragging = false;
-    updateForm();
-}
-
-function onMouseMove(event){
-    if (window.dragging){
-        window.simulationState.simulatedWorldStartX -= (event.clientX - startX) / simulationState.DrawScale
-        window.simulationState.simulatedWorldStartY += (event.clientY - startY) / simulationState.DrawScale
-        window.pendingStaticsUpdate = true;
-        window.pendingMouseUpdate = true;
-        //animate();
-    }
-    startX = event.clientX;
-    startY = event.clientY;
 }
 
 function resizeCanvas() {
@@ -733,28 +726,71 @@ $(function(){
     });
 
     let canvas = document.getElementById("diagramCanvas");
-    canvas.addEventListener('mousedown', function (event) {
-        startX = event.clientX;
-        startY = event.clientY;
-        window.dragging = true;
-    }, false);
-    canvas.addEventListener('mouseup', onMouseUp, false);
-    canvas.addEventListener('mousemove', onMouseMove, false);
-
     canvas.addEventListener('wheel',function(event){
-        let lastDrawScale = window.simulationState.DrawScale;
-        let canvas = document.getElementById("diagramCanvas");
-
-        let mouseX = PtosX(window.startX);
-        let mouseY = PtosY(window.startY);
-        window.simulationState.DrawScale *= Math.pow(1.01, -event.deltaY/10);
-        simulationState.simulatedWorldStartX = mouseX - window.startX/window.simulationState.DrawScale
-        simulationState.simulatedWorldStartY = mouseY + window.startY/window.simulationState.DrawScale
+        zoomKeepingPosition(simulationState.DrawScale * Math.pow(1.01, -event.deltaY/10), window.lastMouseX, window.lastMouseY);
 
         window.pendingStaticsUpdate = true;
         updateForm();
         event.preventDefault();
     }, false);
+    canvas.addEventListener('pointermove',function(event){
+        window.lastMouseX = event.clientX;
+        window.lastMouseY = event.clientY;
+        let keyList = Object.keys(window.currentPointers);
+        var lastDistance = -1;
+        if (keyList.length > 1){
+            lastDistance = Math.sqrt(
+                             Math.pow(window.currentPointers[keyList[0]][0] - window.currentPointers[keyList[1]][0], 2) +
+                             Math.pow(window.currentPointers[keyList[0]][1] - window.currentPointers[keyList[1]][1], 2)
+                           );
+        }
+        var lastAverageX = 0;
+        var lastAverageY = 0;
+        if (keyList.length > 0){
+            for (var i = 0; i < keyList.length; i++){
+                lastAverageX += window.currentPointers[keyList[i]][0];
+                lastAverageY += window.currentPointers[keyList[i]][1];
+            }
+            lastAverageX /= keyList.length;
+            lastAverageY /= keyList.length;
+        }
+        if (event.pointerId in window.currentPointers){
+            window.currentPointers[event.pointerId] = [event.clientX, event.clientY];
+        }
 
+        if (keyList.length > 0){
+            var newAverageX = 0;
+            var newAverageY = 0;
+            for (var i = 0; i < keyList.length; i++){
+                newAverageX += window.currentPointers[keyList[i]][0];
+                newAverageY += window.currentPointers[keyList[i]][1];
+            }
+            newAverageX /= keyList.length;
+            newAverageY /= keyList.length;
+
+            window.simulationState.simulatedWorldStartX -= (newAverageX - lastAverageX) / simulationState.DrawScale;
+            window.simulationState.simulatedWorldStartY += (newAverageY - lastAverageY) / simulationState.DrawScale;
+            window.pendingStaticsUpdate = true;
+            window.pendingMouseUpdate = true;
+        }
+        if (keyList.length > 1){
+            var newDistance = Math.sqrt(
+                                Math.pow(window.currentPointers[keyList[0]][0] - window.currentPointers[keyList[1]][0], 2) +
+                                Math.pow(window.currentPointers[keyList[0]][1] - window.currentPointers[keyList[1]][1], 2)
+                              );
+            zoomKeepingPosition(newDistance / lastDistance * simulationState.DrawScale, newAverageX, newAverageY);
+        }
+    }, false);
+    canvas.addEventListener('pointerdown',function(event){
+        window.lastMouseX = event.clientX;
+        window.lastMouseY = event.clientY;
+        window.currentPointers[event.pointerId] = [event.clientX, event.clientY];
+    }, false);
+    canvas.addEventListener('pointerup',function(event){
+        delete window.currentPointers[event.pointerId];
+        if (Object.keys(window.currentPointers).length == 0){
+            updateForm();
+        }
+    }, false);
 
 });
