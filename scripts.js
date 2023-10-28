@@ -492,7 +492,7 @@ async function animateDiagrams(nextTime){
 
 
             context.fillStyle = '#000000b0';
-            context.fillRect(canvas.width - 640, canvas.height - 8 * 16 - 8,632, 8*16 + 8)
+            context.fillRect(canvas.width - 640, canvas.height - 8 * 16 * ratio - 8,632, 8*16*ratio + 8)
 
             context.textBaseline = "bottom";
             context.fillStyle = "#dddddd";
@@ -609,8 +609,9 @@ function autoZoom() {
     }
 
     // Calculate the required DrawScale
-    const canvasWidth = window.innerWidth;
-    const canvasHeight = window.innerHeight;
+    let canvas = document.getElementById("diagramCanvas");
+    const canvasWidth = canvas.width;
+    const canvasHeight = canvas.height;
     const desiredWidth = canvasWidth * 0.05;
     const desiredHeight = canvasHeight * 0.05;
     const scaleX = desiredWidth / (maxX - minX);
