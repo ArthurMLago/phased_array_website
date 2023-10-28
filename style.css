@@ -9,13 +9,20 @@ body{
     float:left;
     display: inline-block;
     background: #72c99ecc;
-    max-width: 80%;
-    overflow-y:visible;
-    overflow-x:visible;
+    overflow:scroll;
     height:100%;
+    /* z-index: 5; */
+    width:90%;
+
+    -webkit-box-sizing: border-box; /* Safari/Chrome, other WebKit */
+    -moz-box-sizing: border-box;    /* Firefox, other Gecko */
+    box-sizing: border-box;         /* Opera/IE 8+ */
 }
 
+
 #toggleDiv{
+    width:10%;
+    max-width: 15em;
     float: left;
     margin: 0 auto;
 }
@@ -25,14 +32,32 @@ body{
     left:0;
     top:0;
     height: 100%;
+    /* width: 80%; */
+    /* max-width: 24em; */
     z-index:5;
+    overflow: visible;
+    font-size: 1.1rem;
+}
+
+@media (max-width: 768px){
+    #configDivWrapper{
+        font-size: 3vw;
+    }
+}
+
+h3 {
+    margin-top: 4px;
+}
+
+#bottomFiller{
+    padding-top: 24rem;
 }
 
 .checkbox-row{
-    display: table-row;
-    text-align: right;
-    margin-top:50px;
-    white-space: nowrap;
+    /* display: table-row; */
+    /* text-align: right; */
+    /* margin-top:50px; */
+    /* white-space: nowrap; */
 }
 .checkbox-extrainfo{
     display: table-cell;
@@ -45,7 +70,7 @@ body{
 .floatInput{
     padding: .25em;
     border-radius: .5em;
-    width: 14em;
+    width: 8em;
 }
 
 .intInput{
@@ -70,6 +95,7 @@ body{
     position: absolute;
     left: 0px;
     top: 0px;
+    width: 100%;
     z-index: 1;
 }
 
@@ -78,6 +104,7 @@ body{
     left: 0px;
     top: 0px;
     /*background: #f00;*/
+    width: 100%;
     z-index: 2;
 }
 
@@ -85,8 +112,10 @@ body{
     position: absolute;
     left: 0px;
     top: 0px;
+    width: 100%;
     z-index: 3;
     cursor: crosshair;
+    touch-action: none;
 }
 
 .tooltip {
@@ -94,30 +123,23 @@ body{
     display: inline-block;
     cursor: help;
     border-bottom: 1px dotted black; /* If you want dots under the hoverable text */
+    padding: 4px 8px;
+    
 }
 
 /* Tooltip text */
-.tooltip .tooltiptext {
-    visibility: hidden;
-    /* Position the tooltip text - see examples below! */
-    position: absolute;
-    z-index: 10;
+.tooltiptext {
+    display: none;
     width: 360px;
     color: #fff;
     background-color: #333;
     border-radius: 6px;
     padding: 6px;
-    top: 25px;
-    left: -50%;
-    margin-left: -60px; /* Use half of the width (120/2 = 60), to center the tooltip */
-    white-space: normal;
     text-align: center;
 
 }
 
-/* Show the tooltip text when you mouse over the tooltip container */
-.tooltip:hover .tooltiptext {
-    visibility: visible;
+.minorInfo{
+    font-size: 0.85rem;
 }
-
 

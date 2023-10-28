@@ -93,9 +93,6 @@ function zoomKeepingPosition(newScale, pixelX, pixelY){
     simulationState.simulatedWorldStartX = simulationState.simulatedWorldStartX + pixelX/simulationState.DrawScale - pixelX/newScale;
     simulationState.simulatedWorldStartY = simulationState.simulatedWorldStartY - pixelY/simulationState.DrawScale + pixelY/newScale;
     simulationState.DrawScale = newScale;
-
-    console.log(simulationState.simulatedWorldStartX);
-    console.log(simulationState.simulatedWorldStartY);
 }
 
 function updatePhaseVariation(){
@@ -218,12 +215,11 @@ function updateForm(){
         readCustomFeeds();
     }else{
         var phaseVar = 2 * pi * $("#elementsHorizontalDistance").val() * Math.sin($("#wavefrontAngle").val() * pi / 180) / $("#waveSpeed").val() * $("#carrierFreq").val();
-        $("#phaseVariationByElement").val(phaseVar * 180 / pi);
+        $("#phaseVariationByElement").val((phaseVar * 180 / pi).toFixed(4));
 
         $("#customFeedsField").hide();
         $("#wavefrontAngle").prop( "disabled", false );
         $("#phaseVariationByElement").prop( "disabled", false );
-
 
         angleByEl = -$("#phaseVariationByElement").val()/180 * pi;
         textAreaText = "";
@@ -312,7 +308,6 @@ function updateForm(){
         workerCommand.waveSpeed = formConfigurations.waveSpeed;
         workerCommand.resolution = formConfigurations.resolution;
         workerCommand.nthreads = formConfigurations.nthreads;
-        console.log(workerCommand);
         sendToWorker(workerCommand);
         if (!alreadyProcessing){
             if (formConfigurations.drawMagnitude){
@@ -373,7 +368,6 @@ function workerCallback(e){
 
 
 async function animate(){
-
     let delta = performance.now() - lastRender;
     lastRender += delta;
     movingAverageRenderTime = movingAverageRenderTime * 0.97 + delta * 0.03;
@@ -403,7 +397,7 @@ async function animate(){
     }
 
     simulationState.simulationTime = nextSimulationTime;
-    // We only request a new frame when all data from worker is ready:
+    // We only request a new frame when all data 0.00from worker is ready:
     await Promise.all([fieldDrawnPromise, animatedDiagramsPromise]);
     requestAnimationFrame(animate);
 }
@@ -432,6 +426,7 @@ function drawStaticElements(){
         context.textAlign = "center"
         context.textBaseline = "middle";
         context.fillStyle = "orange";
+        context
         context.fillText(((formConfigurations.angles[i] * 180 / pi)%360).toFixed(1), sXtoP(ant[0]), sYtoP(ant[1]) + 50);
     }
     context.stroke();
@@ -477,7 +472,9 @@ function treatNumber(number){
 async function animateDiagrams(nextTime){
     let canvas = document.getElementById("diagramCanvas");
     let context = canvas.getContext("2d");
+    var ratio = window.devicePixelRatio || 1;
     context.clearRect(0, 0, canvas.width, canvas.height);
+    context.font = (10 * ratio) + "px monospace";
 
     var mouseTexts = []
     var mousePromise = 0;
@@ -492,8 +489,16 @@ async function animateDiagrams(nextTime){
                 "At that azimuth in far range:",
                 "Mag: " + window.mouseStats.far_field_mag.toFixed(2).padStart(7, " ") + " (" + window.mouseStats.far_field_magdb.toFixed(2).padStart(7, " ") + " dB)"
             ]
+
+
+            context.fillStyle = '#000000b0';
+            context.fillRect(canvas.width - 640, canvas.height - 8 * 16 - 8,632, 8*16 + 8)
+
+            context.textBaseline = "bottom";
+            context.fillStyle = "#dddddd";
+            context.font = (16 * ratio) + "px monospace";
             for (var i = 0; i < mouseTexts.length; i++){
-                context.fillText(mouseTexts[i], canvas.width - 16, canvas.height + (i -mouseTexts.length) * 16);
+                context.fillText(mouseTexts[i], canvas.width - 16, canvas.height + (i -mouseTexts.length) * 16 * ratio);
             }
         }
 
@@ -554,17 +559,11 @@ async function animateDiagrams(nextTime){
     context.fillText((1/movingAverageRenderTime * 1e3).toFixed(2) + " FPS", canvas.width - 16, 0);
 
 
-    if (window.printMouseData){
-        context.fillStyle = '#000000b0';
-        context.fillRect(canvas.width - 640, canvas.height - 8 * 16 - 8,632, 8*16 + 8)
-
-        context.textBaseline = "bottom";
-        context.fillStyle = "#dddddd";
-        context.font = "16px monospace";
-        for (var i = 0; i < mouseTexts.length; i++){
-            context.fillText(mouseTexts[i], canvas.width - 16, canvas.height + (i -mouseTexts.length) * 16);
-        }
-    }
+    // if (window.printMouseData){
+    //     for (var i = 0; i < mouseTexts.length; i++){
+    //         context.fillText(mouseTexts[i], canvas.width - 16, canvas.height + (i -mouseTexts.length) * 16);
+    //     }
+    // }
 
     await mousePromise;
 
@@ -587,8 +586,9 @@ function resizeCanvas() {
     const canvasIDs = ["diagramCanvas", "fieldsCanvas", "staticElementsCanvas"];
     canvasIDs.forEach(function(id){
         let canvas = document.getElementById(id);
-        canvas.width = window.innerWidth;
-        canvas.height = window.innerHeight;
+        var ratio = window.devicePixelRatio || 1;
+        canvas.width = window.innerWidth * ratio;
+        canvas.height = window.innerHeight * ratio;
     });
 
     updateForm();
@@ -682,8 +682,8 @@ $(function(){
         updateForm();
     });
     $("#phaseVariationByElement").change(function(){
-        var wavefrontAngle = Math.asin($("#phaseVariationByElement").val()/180 * pi * $("#waveSpeed").val() / $("#carrierFreq").val() / $("#elementsHorizontalDistance").val() / 2 / pi);
-        $("#wavefrontAngle").val(wavefrontAngle * 180 / pi);
+        var wavefrontAngle = Math.asin(parseFloat($("#phaseVariationvar ratio = window.devicePixelRatio || 1;ByElement").val())/180 * pi * $("#waveSpeed").val() / parseFloat($("#carrierFreq").val()) / parseFloat($("#elementsHorizontalDistance").val()) / 2 / pi);
+        $("#wavefrontAngle").val((wavefrontAngle * 180 / pi).toFixed(4));
         updateForm();
     });
     $("#zoomToFit").click(autoZoom);
@@ -705,7 +705,7 @@ $(function(){
 
         //var wasm_filename = "compiled_wasm/fields";
         var wasm_filename = "fields";
-        if (crossOriginIsolated){
+        if (crossOriginIsolated){var ratio = window.devicePixelRatio || 1;
             wasm_filename += "_sm";
         }
         if (ret[0]){
@@ -734,8 +734,9 @@ $(function(){
         event.preventDefault();
     }, false);
     canvas.addEventListener('pointermove',function(event){
-        window.lastMouseX = event.clientX;
-        window.lastMouseY = event.clientY;
+        var ratio = window.devicePixelRatio || 1;
+        window.lastMouseX = event.clientX * ratio;
+        window.lastMouseY = event.clientY * ratio;
         let keyList = Object.keys(window.currentPointers);
         var lastDistance = -1;
         if (keyList.length > 1){
@@ -755,7 +756,7 @@ $(function(){
             lastAverageY /= keyList.length;
         }
         if (event.pointerId in window.currentPointers){
-            window.currentPointers[event.pointerId] = [event.clientX, event.clientY];
+            window.currentPointers[event.pointerId] = [event.clientX * ratio, event.clientY * ratio];
         }
 
         if (keyList.length > 0){
@@ -782,9 +783,10 @@ $(function(){
         }
     }, false);
     canvas.addEventListener('pointerdown',function(event){
-        window.lastMouseX = event.clientX;
-        window.lastMouseY = event.clientY;
-        window.currentPointers[event.pointerId] = [event.clientX, event.clientY];
+        var ratio = window.devicePixelRatio || 1;
+        window.lastMouseX = event.clientX * ratio;
+        window.lastMouseY = event.clientY * ratio;
+        window.currentPointers[event.pointerId] = [event.clientX * ratio, event.clientY * ratio];
     }, false);
     canvas.addEventListener('pointerup',function(event){
         delete window.currentPointers[event.pointerId];
@@ -792,5 +794,11 @@ $(function(){
             updateForm();
         }
     }, false);
+
+    $(".tooltip").hover(function(){
+        $(this).next(".tooltipText").slideDown(100);
+    }, function(){
+        $(this).next(".tooltipText").slideUp(100);
+    });
 
 });
