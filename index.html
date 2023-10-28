@@ -60,7 +60,7 @@
                     </div>
                 </div>
                 <div class=checkbox-row>
-                    <label for="drawSinusoidPeaks">Draw Sinusoid Peaks:</label><input type="checkbox" id="drawSinusoidPeaks" class="triggerFormUpdate">
+                    <label for="drawSinusoidPeaks">Draw Sinusoid Peaks:</label><input type="checkbox" id="drawSinusoidPeaks" class="triggerFormUpdate" checked>
                     <div id="sinusoidPeakDetails" class=checkbox-extrainfo style="display:none;">
                         <label for="sinusoidPeakStep">Every</label><input id="sinusoidPeakStep" type="number" min=1 class="triggerFormUpdate intInput" value=10 /> peaks
                     </div>
@@ -103,7 +103,7 @@
                 </div>
                 <textarea id="customAntennaField" style="display:none;" class="triggerFormUpdate"></textarea>
                 <div class=checkbox-row>
-                    <label for="numberElements">Number of Elements:</label><input id="numberElements" type="Number" min=0 value=5 class="triggerFormUpdate intInput"/>
+                    <label for="numberElements">Number of Elements:</label><input id="numberElements" type="number" min=0 value=8 class="triggerFormUpdate intInput"/>
                     <div class="tooltip">?</div>
                     <div class="tooltiptext">
                         <p>
@@ -112,7 +112,7 @@
                     </div>
                 </div>
                 <div class=checkbox-row>
-                    <label for="elementsHorizontalDistance">Elements Horizontal Distance:</label><input id="elementsHorizontalDistance" value=0.05 class="triggerFormUpdate floatInput" />
+                    <label for="elementsHorizontalDistance">Elements Horizontal Distance:</label><input id="elementsHorizontalDistance" type="number" value=0.03 class="triggerFormUpdate floatInput" />
                     <div class="tooltip">?</div>
                     <div class="tooltiptext">
                         <p>
@@ -126,7 +126,7 @@
 
                 <h3>Signal Configuration</h3>
                 <div class=checkbox-row>
-                    <label for="waveSpeed">Wave Speed:</label><input id="waveSpeed" value=3e8 class="triggerFormUpdate floatInput" />
+                    <label for="waveSpeed">Wave Speed:</label><input type="number" id="waveSpeed" value=3e8 min=0 class="triggerFormUpdate floatInput" />
                     <div class="tooltip">?</div>
                     <div class="tooltiptext">
                         <p>
@@ -138,7 +138,7 @@
                     </div>
                 </div>
                 <div class=checkbox-row>
-                    <label for="carrierFreq">Carrier Frequency:</label><input id="carrierFreq" value=3e9 class="triggerFormUpdate floatInput" />
+                    <label for="carrierFreq">Carrier Frequency:</label><input type="number" id="carrierFreq" value=5e9 min=0 class="triggerFormUpdate floatInput" />
                     <div class="tooltip">?</div>
                     <div class="tooltiptext">
                         <p>
@@ -161,7 +161,7 @@
                 </div>
                 <textarea id="customFeedsField" style="display:none;" class="triggerFormUpdate"></textarea>
                 <div class=checkbox-row>
-                    <label for="wavefrontAngle">Wavefront Angle:</label><input id="wavefrontAngle" class="triggerFormUpdate floatInput"/>
+                    <label for="wavefrontAngle">Wavefront Angle:</label><input type="number" id="wavefrontAngle" value=20 class="triggerFormUpdate floatInput"/>
                     <div class="tooltip">?</div>
                     <div class="tooltiptext">
                         <p>
@@ -173,7 +173,7 @@
                     </div>
                 </div>
                 <div class=checkbox-row>
-                    <label for="phaseVariationByElement">Phase Variation By Element:</label><input id="phaseVariationByElement" class="floatInput" />
+                    <label for="phaseVariationByElement">Phase Variation By Element:</label><input type="number" id="phaseVariationByElement" class="floatInput" />
                     <div class="tooltip">?</div>
                     <div class="tooltiptext">
                         <p>
@@ -183,7 +183,7 @@
                 </div>
                 <h3>Performance Options:</h3>
                 <div class=checkbox-row>
-                    <label for="resolution">Resolution:</label><input id="resolution" type="Number" min=1 value=3 class="triggerFormUpdate intInput" />
+                    <label for="resolution">Resolution:</label><input type="number" id="resolution" type="Number" min=1 value=3 step=1 class="triggerFormUpdate intInput" />
                     <div class="tooltip">?</div>
                     <div class="tooltiptext">
                         <p>
@@ -192,7 +192,7 @@
                     </div>
                 </div>
                 <div class=checkbox-row>
-                    <label for="nthreads">Number of Threads:</label><input id="nthreads" type="Number" min=1 value=4 class="triggerFormUpdate intInput" />
+                    <label for="nthreads">Number of Threads:</label><input type="number" id="nthreads" type="Number" min=1 value=4 step=1 class="triggerFormUpdate intInput" />
                     <div class="tooltip">?</div>
                     <div class="tooltiptext">
                         <p>
