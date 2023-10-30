@@ -36,8 +36,8 @@
 #define FAR_FIELD 1e3
 #define ANTENNA_DIAGRAM_DIVS 1800
 
-EXTERN void consolelogf(float v);
-EXTERN void consoleloga(unsigned long v);
+// EXTERN void consolelogf(float v);
+// EXTERN void consoleloga(unsigned long v);
 
 /** 
  * struct representing an antenna position
