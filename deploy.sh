@@ -47,8 +47,15 @@ for simd in 0 1; do
     done
 done
 
-cp gear.svg index.html scripts.js fieldsWorker.js style.css color_scale.png deploy
+cp gear.svg color_scale.png deploy
 cp jquery-3.6.2.min.js wasm-feature-detect.js deploy
 # -sMODULARIZE -s 'EXPORT_NAME="createMyModule"'
+#
+npx html-minifier --collapse-whitespace --remove-comments --remove-optional-tags --remove-redundant-attributes --remove-script-type-attributes --remove-tag-whitespace --use-short-doctype --minify-css true --minify-js true < index.html > deploy/index.html
+npx uglifyjs --compress --mangle < scripts.js > deploy/scripts.js
+npx uglifyjs --compress --mangle < fieldsWorker.js > deploy/fieldsWorker.js
+npx uglifycss < style.css > deploy/style.css
+
+
 wait
 

@@ -12,5 +12,12 @@ This website uses webassembly to perform the magnitudes and fields drawing, whic
 
 **emsdk version used: 3.1.28**
 
-Build and deployment are entirely compromised in `deploy.sh`, but to run it, you need to have emsdk of the appropriate enabled and sourced.
+Install npm minifying tools while at the project root directory:
+```
+npm install uglifycss
+npm install uglify-js
+npm install html-minifier
+```
+
+Build and deployment are entirely done in `deploy.sh`, but to run it, you need to have emsdk of the appropriate version enabled and sourced, and nodejs tools for minifying installed locally.
 
