@@ -14,7 +14,7 @@ var globals = {
 
 function sendUpdate(data){
     console.log("updateParams")
-    console.log(globals.wsInstance);
+    // console.log(globals.wsInstance);
 
     // Antennas:
     let antennasSize = Float32Array.BYTES_PER_ELEMENT * data.ants.length * 3;
