@@ -683,7 +683,7 @@ $(function(){
         updateForm();
     });
     $("#phaseVariationByElement").change(function(){
-        var wavefrontAngle = Math.asin(parseFloat($("#phaseVariationvar ratio = window.devicePixelRatio || 1;ByElement").val())/180 * pi * $("#waveSpeed").val() / parseFloat($("#carrierFreq").val()) / parseFloat($("#elementsHorizontalDistance").val()) / 2 / pi);
+        var wavefrontAngle = Math.asin(parseFloat($("#phaseVariationByElement").val())/180 * pi * $("#waveSpeed").val() / parseFloat($("#carrierFreq").val()) / parseFloat($("#elementsHorizontalDistance").val()) / 2 / pi);
         $("#wavefrontAngle").val((wavefrontAngle * 180 / pi).toFixed(4));
         updateForm();
     });
