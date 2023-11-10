@@ -131,6 +131,29 @@ function readCustomAntenna(){
     }
 }
 
+// TODO credit https://github.com/oramics/unwrap-phases
+const PI = Math.PI
+const PI2 = 2 * Math.PI
+function phmod (ph) { return ph < 0 ? PI2 + (ph % PI2) : ph % PI2 }
+function unwrap (input, output) {
+    const size = input.length
+    if (!output) output = input
+    if (output === true) output = new Array(size)
+
+    let shift = 0
+    let prev = phmod(input[0])
+    output[0] = prev
+    for (let i = 1; i < size; i++) {
+        const current = phmod(input[i])
+        const diff = current - prev
+        if (diff < -PI) shift += PI2
+        else if (diff > PI) shift -= PI2
+        output[i] = current + shift
+        prev = current
+    }
+    return output
+}
+
 function readCustomFeeds(){
     // Get the text from the textbox
     var text = $('#customFeedsField').val();
@@ -176,6 +199,9 @@ function readCustomFeeds(){
         window.formConfigurations.feeds.push(parsedNumber);
         window.formConfigurations.angles.push(Math.atan2(parsedNumber.im, parsedNumber.re));
     }
+    console.log(window.formConfigurations.angles);
+    window.formConfigurations.angles = unwrap(window.formConfigurations.angles);
+    console.log(window.formConfigurations.angles);
 }
 
 function updateForm(){
