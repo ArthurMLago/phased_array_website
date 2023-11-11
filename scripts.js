@@ -35,8 +35,8 @@ var mouseStats = 0;
 var fieldData = 0;
 var printMouseData = true;
 var antennaDiagram = [];
-    let lastPinchDistance = 0;
-    let lastDrawScale = 1;
+let lastPinchDistance = 0;
+let lastDrawScale = 1;
 
 var fieldsWorker = 0;
 var fieldsWorkerReady = false;
@@ -502,40 +502,6 @@ async function animateDiagrams(nextTime){
     context.clearRect(0, 0, canvas.width, canvas.height);
     context.font = (10 * ratio) + "px monospace";
 
-    var mouseTexts = []
-    var mousePromise = 0;
-    if (window.printMouseData){
-        if (typeof window.mouseStats === "object"){
-            mouseTexts = [
-                "Mouse position:",
-                "x: " + treatNumber(window.mouseStats.x) + ", y: " + treatNumber(window.mouseStats.y) + " (dist: " + treatNumber(window.mouseStats.distance) + ", azimuth: " + (window.mouseStats.azimuth % 360).toFixed(2).padStart(7, " ") + ")",
-                "At this position:",
-                "Mag: "+ window.mouseStats.magnitude.toFixed(2).padStart(7, " ") + "(" + window.mouseStats.magdb.toFixed(2).padStart(7," ") + " dB), Phase: " + (window.mouseStats.phase % 360).toFixed(2).padStart(7, " "),
-                "Electric field: " + window.mouseStats.re.toFixed(2).padStart(7, " ") + ", Magnetic field: " + window.mouseStats.im.toFixed(2).padStart(7, " "),
-                "At that azimuth in far range:",
-                "Mag: " + window.mouseStats.far_field_mag.toFixed(2).padStart(7, " ") + " (" + window.mouseStats.far_field_magdb.toFixed(2).padStart(7, " ") + " dB)"
-            ]
-
-
-            context.fillStyle = '#000000b0';
-            context.fillRect(canvas.width - 640, canvas.height - 8 * 16 * ratio - 8,632, 8*16*ratio + 8)
-
-            context.textBaseline = "bottom";
-            context.fillStyle = "#dddddd";
-            context.font = (16 * ratio) + "px monospace";
-            for (var i = 0; i < mouseTexts.length; i++){
-                context.fillText(mouseTexts[i], canvas.width - 16, canvas.height + (i -mouseTexts.length) * 16 * ratio);
-            }
-        }
-
-        // Now that we used the mouse data, go ahead and requst new one:
-        if (fieldsWorkerReady){
-            mousePromise = new Promise(function(resolve, reject){
-                sendToWorker({command: "getMouse", t: nextTime, mx: PtosX(lastMouseX), my: PtosY(lastMouseY), cx: formConfigurations.antenna_center_x, cy: formConfigurations.antenna_center_y}, resolve);
-            });
-        }
-    }
-
     context.beginPath();
     // Draw wave peaks
     if (formConfigurations.drawSinusoidPeak){
@@ -592,6 +558,40 @@ async function animateDiagrams(nextTime){
     // }
 
     await mousePromise;
+
+    var mouseTexts = [];
+    var mousePromise = 0;
+    if (window.printMouseData){
+        if (typeof window.mouseStats === "object"){
+            mouseTexts = [
+                "Mouse position:",
+                "x: " + treatNumber(window.mouseStats.x) + ", y: " + treatNumber(window.mouseStats.y) + " (dist: " + treatNumber(window.mouseStats.distance) + ", azimuth: " + (window.mouseStats.azimuth % 360).toFixed(2).padStart(7, " ") + ")",
+                "At this position:",
+                "Mag: "+ window.mouseStats.magnitude.toFixed(2).padStart(7, " ") + "(" + window.mouseStats.magdb.toFixed(2).padStart(7," ") + " dB), Phase: " + (window.mouseStats.phase % 360).toFixed(2).padStart(7, " "),
+                "Electric field: " + window.mouseStats.re.toFixed(2).padStart(7, " ") + ", Magnetic field: " + window.mouseStats.im.toFixed(2).padStart(7, " "),
+                "At that azimuth in far range:",
+                "Mag: " + window.mouseStats.far_field_mag.toFixed(2).padStart(7, " ") + " (" + window.mouseStats.far_field_magdb.toFixed(2).padStart(7, " ") + " dB)"
+            ]
+
+
+            context.fillStyle = '#000000b0';
+            context.fillRect(canvas.width - 640, canvas.height - 8 * 16 * ratio - 8,632, 8*16*ratio + 8)
+
+            context.textBaseline = "bottom";
+            context.fillStyle = "#dddddd";
+            context.font = (16 * ratio) + "px monospace";
+            for (var i = 0; i < mouseTexts.length; i++){
+                context.fillText(mouseTexts[i], canvas.width - 16, canvas.height + (i -mouseTexts.length) * 16 * ratio);
+            }
+        }
+
+        // Now that we used the mouse data, go ahead and requst new one:
+        if (fieldsWorkerReady){
+            mousePromise = new Promise(function(resolve, reject){
+                sendToWorker({command: "getMouse", t: nextTime, mx: PtosX(lastMouseX), my: PtosY(lastMouseY), cx: formConfigurations.antenna_center_x, cy: formConfigurations.antenna_center_y}, resolve);
+            });
+        }
+    }
 
 }
 
